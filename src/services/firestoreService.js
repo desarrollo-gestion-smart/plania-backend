@@ -289,6 +289,49 @@ export const findBusinessUser = async (nombre, numero) => {
   }
 };
 
+/** Busca un usuario de la app (colección users) por número. Si hay varios, devuelve el más reciente. */
+export const getAppUserByNumero = async (numero) => {
+  const numStr = String(numero).trim();
+  const userQuery = await db.collection("users")
+    .where("numero", "==", numStr)
+    .get();
+  if (userQuery.empty) {
+    throw new Error("Credenciales incorrectas");
+  }
+  const docs = userQuery.docs;
+  const sorted = docs.sort((a, b) => {
+    const tA = a.data().createdAt?.toMillis?.() ?? 0;
+    const tB = b.data().createdAt?.toMillis?.() ?? 0;
+    return tB - tA;
+  });
+  const userData = sorted[0].data();
+  return {
+    id: userData.id,
+    nombre: userData.nombre ?? "",
+    numero: userData.numero ?? numStr,
+    status: userData.status ?? "pending_verification",
+    type: "user",
+  };
+};
+
+export const getBusinessUserByNumero = async (numero) => {
+  try {
+    const numStr = String(numero).trim();
+    const userQuery = await db.collection("user-business")
+      .where("numero", "==", numStr)
+      .get();
+    if (userQuery.empty) {
+      throw new Error("Credenciales incorrectas");
+    }
+    const userData = userQuery.docs[0].data();
+    const setupFlag = typeof userData.isInitialSetupComplete === 'string' ? userData.isInitialSetupComplete.toLowerCase() === 'true' : Boolean(userData.isInitialSetupComplete);
+    return { id: userData.id, nombre: userData.nombre, correo: userData.correo, numero: userData.numero, avatar: userData.avatar, banner: userData.banner, isInitialSetupComplete: setupFlag, type: "business" };
+  } catch (error) {
+    console.error("Firestore error getting business user by numero:", error);
+    throw new Error(error.message);
+  }
+};
+
 export const loginBusinessUser = async (numero, password) => {
   try {
     console.log('Logging in business user:', { numero });
@@ -311,12 +354,7 @@ export const loginBusinessUser = async (numero, password) => {
       }
     }
 
-    // If none matched
     throw new Error("Credenciales incorrectas");
-
-    console.log('Business user logged in successfully');
-    const setupFlag = typeof userData.isInitialSetupComplete === 'string' ? userData.isInitialSetupComplete.toLowerCase() === 'true' : Boolean(userData.isInitialSetupComplete);
-    return { id: userData.id, nombre: userData.nombre, correo: userData.correo, numero: userData.numero, avatar: userData.avatar, banner: userData.banner, isInitialSetupComplete: setupFlag };
   } catch (error) {
     console.error("Firestore error logging in business user:", error);
     throw new Error(error.message);
@@ -784,5 +822,26 @@ export const getBusinessById = async (businessId) => {
   } catch (error) {
     console.error("Firestore error obteniendo negocio por id:", error);
     throw new Error(error.message);
+  }
+};
+
+export const getAllUsers = async () => {
+  try {
+    const snapshot = await db.collection("users").orderBy("createdAt", "desc").get();
+    const users = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: data.id ?? doc.id,
+        nombre: data.nombre ?? '',
+        numero: data.numero ?? '',
+        status: data.status ?? 'pending_verification',
+        createdAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
+        verifiedAt: data.verifiedAt?.toDate?.()?.toISOString() ?? null,
+      };
+    });
+    return users;
+  } catch (error) {
+    console.error("Firestore error obteniendo usuarios:", error);
+    throw new Error(`Error obteniendo usuarios: ${error.message}`);
   }
 };

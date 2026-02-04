@@ -8,22 +8,27 @@ dotenv.config();
 
 const serviceAccountPath = path.resolve("./firebase-service-account.json"); // tu clave descargada
 
+let bucket;
 try {
   const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
   console.log("Firebase service account loaded successfully. Project ID:", serviceAccount.project_id);
 
   if (admin.apps.length === 0) {
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`;
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      storageBucket: bucketName,
     });
+    console.log("🔥 Firebase initialized. Storage bucket:", bucketName);
   }
+
+  // Inicializar la referencia al bucket explícitamente usando env o fallback
+  const bucketNameForGet = process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`;
+  bucket = getStorage().bucket(bucketNameForGet);
 } catch (error) {
   console.error("Error loading Firebase service account:", error.message);
   throw error;
 }
-
-const bucket = getStorage().bucket();
 
 export const uploadImageToFirebase = async (file, userId = null) => {
   const prefix = userId ? `business/${userId}_` : `business/`;

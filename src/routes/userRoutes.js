@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers } from "../controllers/userController.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -17,8 +17,8 @@ router.post("/resend-code", resendCode);
 // POST /api/register-business
 router.post("/register-business", registerBusiness);
 
-// POST /api/login-business
-router.post("/login-business", loginBusiness);
+// POST /api/login
+router.post("/login", loginBusiness);
 
 // POST /api/verify-business
 router.post("/verify-business", verifyBusiness);
@@ -46,5 +46,8 @@ router.post(
 
 // GET /api/get-business/:businessId
 router.get("/get-business/:businessId", getBusinessInfo);
+
+// GET /api/users - Lista de usuarios registrados
+router.get("/users", getUsers);
 
 export default router;

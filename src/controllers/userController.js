@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff } from "../services/firestoreService.js";
+import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers } from "../services/firestoreService.js";
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
@@ -60,27 +60,39 @@ export const verifyUser = async (req, res) => {
 
 export const loginBusiness = async (req, res) => {
   try {
-    const { numero, password } = req.body;
-
-    console.log('Login business request:', { numero, password: '***' });
-
-    // Validation
-    if (!numero || !password) {
-      return res.status(400).json({ error: "Numero y password son requeridos" });
+    const rawNumero = req.body?.numero;
+    if (rawNumero === undefined || rawNumero === null || rawNumero === "") {
+      return res.status(400).json({ error: "Numero es requerido" });
     }
-
-    // Basic phone validation
+    const numero = String(rawNumero).trim();
     if (!/^\d+$/.test(numero)) {
       return res.status(400).json({ error: "Numero debe contener solo digitos" });
     }
 
-    // Login business user
-    const business = await loginBusinessUser(numero, password);
+    console.log('Login request:', { numero });
 
+    // Primero intentar como usuario de la app (colección users)
+    try {
+      const user = await getAppUserByNumero(numero);
+      return res.status(200).json({
+        message: "Login exitoso",
+        user: { id: user.id, nombre: user.nombre, numero: user.numero, status: user.status },
+        type: "user",
+      });
+    } catch (e) {
+      if (e.message !== "Credenciales incorrectas") throw e;
+    }
+
+    // Si no está en users, intentar como negocio (user-business)
+    const business = await getBusinessUserByNumero(numero);
     const normalizeSetupFlag = (val) => typeof val === 'string' ? val.toLowerCase() === 'true' : Boolean(val);
-    res.status(200).json({ message: "Login exitoso", business: { id: business.id, nombre: business.nombre, correo: business.correo, numero: business.numero, isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete) } });
+    return res.status(200).json({
+      message: "Login exitoso",
+      business: { id: business.id, nombre: business.nombre, correo: business.correo, numero: business.numero, isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete) },
+      type: "business",
+    });
   } catch (error) {
-    console.error("Error logueando usuario business:", error);
+    console.error("Error en login:", error);
     res.status(400).json({ error: error.message });
   }
 };
@@ -374,6 +386,16 @@ export const getBusinessInfo = async (req, res) => {
     }
     console.error("Error en getBusinessInfo:", error);
     return res.status(500).json({ error: "Error al obtener la información del negocio" });
+  }
+};
+
+export const getUsers = async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    return res.status(200).json({ users, total: users.length });
+  } catch (error) {
+    console.error("Error obteniendo usuarios:", error);
+    return res.status(500).json({ error: "Error al obtener los usuarios registrados" });
   }
 };
 
