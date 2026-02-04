@@ -6,3 +6,4 @@ firebase-service-account.json
 .env.local
 .env.*.local
 node_modules
+firebase-service-account.json
