@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers } from "../services/firestoreService.js";
+import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers } from "../services/firestoreService.js";
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
@@ -59,6 +59,7 @@ export const verifyUser = async (req, res) => {
 };
 
 export const loginBusiness = async (req, res) => {
+  console.log("[LOGIN] ✅ Backend recibió petición POST /api/login", new Date().toISOString(), "body:", JSON.stringify(req.body));
   try {
     const rawNumero = req.body?.numero;
     if (rawNumero === undefined || rawNumero === null || rawNumero === "") {
@@ -93,6 +94,46 @@ export const loginBusiness = async (req, res) => {
     });
   } catch (error) {
     console.error("Error en login:", error);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+/** Login de negocio: requiere numero y password. POST /api/login-business */
+export const loginBusinessWithPassword = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const numero = body.numero ?? body.phone ?? body.telefono;
+    const password = body.password ?? body.contraseña ?? body.contrasena ?? body.pass;
+
+    console.log("[LOGIN-BUSINESS] body recibido:", { keys: Object.keys(body), hasNumero: !!numero, hasPassword: !!password });
+
+    if (!numero || String(numero).trim() === "") {
+      return res.status(400).json({ error: "Numero es requerido" });
+    }
+    if (!password || (typeof password === "string" && password.trim() === "")) {
+      return res.status(400).json({ error: "Password es requerido" });
+    }
+
+    const numeroStr = String(numero).trim();
+    if (!/^\d+$/.test(numeroStr)) {
+      return res.status(400).json({ error: "Numero debe contener solo digitos" });
+    }
+
+    const business = await loginBusinessUser(numeroStr, password);
+
+    const normalizeSetupFlag = (val) => typeof val === "string" ? val.toLowerCase() === "true" : Boolean(val);
+    res.status(200).json({
+      message: "Login exitoso",
+      business: {
+        id: business.id,
+        nombre: business.nombre,
+        correo: business.correo,
+        numero: business.numero,
+        isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete),
+      },
+    });
+  } catch (error) {
+    console.error("Error en login business:", error);
     res.status(400).json({ error: error.message });
   }
 };
@@ -201,9 +242,9 @@ export const resendCode = async (req, res) => {
 
 export const registerBusiness = async (req, res) => {
   try {
-    const { nombre, correo, numero, password, terms } = req.body;
+    const { nombre, correo, numero, password, terms, avatar } = req.body;
 
-    // Validation
+    // Validation (avatar no es obligatorio)
     if (!nombre || !correo || !numero || !password) {
       return res.status(400).json({ error: "Nombre, correo, numero y password son requeridos" });
     }
@@ -234,8 +275,8 @@ export const registerBusiness = async (req, res) => {
       return res.status(400).json({ error: "La contraseña debe incluir al menos un número" });
     }
 
-    // Create business user
-    const business = await createBusinessUser(nombre, correo, numero, password);
+    // Create business user (avatar opcional)
+    const business = await createBusinessUser(nombre, correo, numero, password, avatar ?? null);
 
     // Send SMS (don't fail registration if SMS fails)
     const message = `Tu código de verificación es: ${business.verificationCode}`;
@@ -398,4 +439,3 @@ export const getUsers = async (req, res) => {
     return res.status(500).json({ error: "Error al obtener los usuarios registrados" });
   }
 };
-

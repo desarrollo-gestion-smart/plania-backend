@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers } from "../controllers/userController.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -19,6 +19,9 @@ router.post("/register-business", registerBusiness);
 
 // POST /api/login
 router.post("/login", loginBusiness);
+
+// POST /api/login-business (numero + password). Acepta JSON o multipart/form-data
+router.post("/login-business", upload.none(), loginBusinessWithPassword);
 
 // POST /api/verify-business
 router.post("/verify-business", verifyBusiness);

@@ -335,12 +335,13 @@ export const getBusinessUserByNumero = async (numero) => {
 export const loginBusinessUser = async (numero, password) => {
   try {
     console.log('Logging in business user:', { numero });
+    const numStr = String(numero).trim();
     const userQuery = await db.collection("user-business")
-      .where("numero", "==", numero)
+      .where("numero", "==", numStr)
       .get();
     console.log('User query docs count:', userQuery.docs.length);
     if (userQuery.empty) {
-      throw new Error("Credenciales incorrectas");
+      throw new Error("Este número no está registrado");
     }
 
     // Check password against all matching users
@@ -354,14 +355,14 @@ export const loginBusinessUser = async (numero, password) => {
       }
     }
 
-    throw new Error("Credenciales incorrectas");
+    throw new Error("Error en las credenciales");
   } catch (error) {
     console.error("Firestore error logging in business user:", error);
     throw new Error(error.message);
   }
 };
 
-export const createBusinessUser = async (nombre, correo, numero, password) => {
+export const createBusinessUser = async (nombre, correo, numero, password, avatar = null) => {
   try {
     console.log('Attempting to create business user:', { nombre, correo, numero });
 
@@ -390,7 +391,7 @@ export const createBusinessUser = async (nombre, correo, numero, password) => {
       verificationCode: hashedCode,
       status: 'pending_verification',
       verificationAttempts: 0,
-      avatar: avatar,
+      avatar: avatar || null,
       banner: null,
       isInitialSetupComplete: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

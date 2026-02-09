@@ -52,6 +52,19 @@ app.options("/api/*splat", cors(corsOptions));
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "25mb" }));
 app.use(express.urlencoded({ limit: process.env.URLENCODED_BODY_LIMIT || "25mb", extended: true }));
 
+// Log cuando llega una petición a /api/login (para comprobar si el backend recibe la petición)
+app.use((req, res, next) => {
+  if (req.method === "POST" && (req.path === "/api/login" || req.originalUrl === "/api/login")) {
+    console.log("[LOGIN] 📥 Petición recibida en el servidor:", req.method, req.originalUrl, new Date().toISOString());
+  }
+  next();
+});
+
+// Prueba de conectividad desde el móvil: abre en el navegador del teléfono http://TU_IP:3000/api/health
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({ ok: true, message: "Backend reachable" });
+});
+
 app.use("/api", uploadRoutes);
 app.use("/api", userRoutes);
 app.use("/api", staffRoutes);
@@ -59,10 +72,12 @@ app.use("/api", appointmentsRoutes);
 
 const envPort = process.env.PORT;
 const PORT = envPort && !isNaN(Number(envPort)) ? Number(envPort) : 3000;
-const server = app.listen(PORT, () => {
+// Escuchar en 0.0.0.0 para que el servidor sea accesible desde la red local (ej. app móvil en 192.168.x.x)
+const HOST = process.env.HOST || "0.0.0.0";
+const server = app.listen(PORT, HOST, () => {
   const addr = server.address();
   const actualPort = typeof addr === 'string' ? addr : addr?.port;
-  console.log(`Servidor corriendo en puerto ${actualPort}`);
+  console.log(`Servidor corriendo en http://${HOST}:${actualPort}`);
 });
 
 process.on("uncaughtException", (err) => {
