@@ -801,6 +801,39 @@ export const getStaffNameById = async (staffId) => {
   }
 };
 
+/** Elimina un usuario business y sus datos relacionados (staff, appointments). */
+export const deleteBusinessUser = async (businessId) => {
+  try {
+    const id = Number(businessId);
+    if (!Number.isFinite(id)) {
+      throw new Error("businessId inválido");
+    }
+    const businessRef = db.collection("user-business").doc(String(id));
+    const businessDoc = await businessRef.get();
+    if (!businessDoc.exists) {
+      throw new Error("Business not found");
+    }
+
+    // Borrar staff del negocio
+    const staffSnap = await db.collection("staff").where("businessId", "==", id).get();
+    const batch = db.batch();
+    staffSnap.docs.forEach((d) => batch.delete(d.ref));
+
+    // Borrar citas del negocio
+    const appointmentsSnap = await db.collection("appointments").where("businessId", "==", id).get();
+    appointmentsSnap.docs.forEach((d) => batch.delete(d.ref));
+
+    // Borrar el documento del negocio
+    batch.delete(businessRef);
+    await batch.commit();
+    console.log("Business user and related data deleted:", id);
+    return { id, message: "Usuario de negocio eliminado" };
+  } catch (error) {
+    console.error("Firestore error deleting business user:", error);
+    throw new Error(error.message);
+  }
+};
+
 export const getBusinessById = async (businessId) => {
   try {
     const doc = await db.collection("user-business").doc(String(businessId)).get();

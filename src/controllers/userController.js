@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers } from "../services/firestoreService.js";
+import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, deleteBusinessUser } from "../services/firestoreService.js";
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
@@ -89,7 +89,15 @@ export const loginBusiness = async (req, res) => {
     const normalizeSetupFlag = (val) => typeof val === 'string' ? val.toLowerCase() === 'true' : Boolean(val);
     return res.status(200).json({
       message: "Login exitoso",
-      business: { id: business.id, nombre: business.nombre, correo: business.correo, numero: business.numero, isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete) },
+      business: {
+        id: business.id,
+        nombre: business.nombre,
+        correo: business.correo,
+        numero: business.numero,
+        avatar: business.avatar ?? null,
+        banner: business.banner ?? null,
+        isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete),
+      },
       type: "business",
     });
   } catch (error) {
@@ -129,6 +137,8 @@ export const loginBusinessWithPassword = async (req, res) => {
         nombre: business.nombre,
         correo: business.correo,
         numero: business.numero,
+        avatar: business.avatar ?? null,
+        banner: business.banner ?? null,
         isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete),
       },
     });
@@ -437,5 +447,26 @@ export const getUsers = async (req, res) => {
   } catch (error) {
     console.error("Error obteniendo usuarios:", error);
     return res.status(500).json({ error: "Error al obtener los usuarios registrados" });
+  }
+};
+
+/** DELETE /api/delete-business - Elimina un usuario de negocio y sus datos relacionados. */
+export const deleteBusiness = async (req, res) => {
+  try {
+    const businessId = req.params.businessId ?? req.body?.businessId;
+    if (!businessId) {
+      return res.status(400).json({ error: "businessId es requerido" });
+    }
+    const result = await deleteBusinessUser(businessId);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.message === "Business not found") {
+      return res.status(404).json({ error: "Negocio no encontrado" });
+    }
+    if (error.message === "businessId inválido") {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("Error eliminando usuario de negocio:", error);
+    return res.status(500).json({ error: "Error al eliminar el negocio" });
   }
 };

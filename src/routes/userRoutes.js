@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers, deleteBusiness } from "../controllers/userController.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -52,5 +52,8 @@ router.get("/get-business/:businessId", getBusinessInfo);
 
 // GET /api/users - Lista de usuarios registrados
 router.get("/users", getUsers);
+
+// DELETE /api/delete-business/:businessId - Elimina usuario de negocio y datos relacionados
+router.delete("/delete-business/:businessId", deleteBusiness);
 
 export default router;
