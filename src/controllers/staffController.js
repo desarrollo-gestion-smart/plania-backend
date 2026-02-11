@@ -1,5 +1,6 @@
 import { addStaff, getStaffByBusiness, loginStaff, updateStaffAvatar, updateStaffFields, getStaffNameById } from "../services/firestoreService.js";
 import { uploadImageToFirebase } from "../services/firebaseService.js";
+import { generateToken } from "../utils/jwt.js";
 
 export const addStaffMember = async (req, res) => {
   try {
@@ -69,8 +70,9 @@ export const loginStaffMember = async (req, res) => {
     }
 
     const staff = await loginStaff(numero, password);
+    const tokens = generateToken({ id: staff.id, role: "staff" });
 
-    res.status(200).json({ message: "Login exitoso", staff });
+    res.status(200).json({ message: "Login exitoso", staff, ...tokens });
   } catch (error) {
     console.error("Error logueando miembro del personal:", error);
     res.status(400).json({ error: error.message });

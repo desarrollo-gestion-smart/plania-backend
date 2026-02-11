@@ -4,6 +4,7 @@ import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase 
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
 import { getBusinessById } from "../services/firestoreService.js";
+import { generateToken } from "../utils/jwt.js";
 
 const db = admin.firestore();
 
@@ -75,10 +76,12 @@ export const loginBusiness = async (req, res) => {
     // Primero intentar como usuario de la app (colección users)
     try {
       const user = await getAppUserByNumero(numero);
+      const tokens = generateToken({ id: user.id, role: "user" });
       return res.status(200).json({
         message: "Login exitoso",
         user: { id: user.id, nombre: user.nombre, numero: user.numero, status: user.status },
         type: "user",
+        ...tokens,
       });
     } catch (e) {
       if (e.message !== "Credenciales incorrectas") throw e;
@@ -87,6 +90,7 @@ export const loginBusiness = async (req, res) => {
     // Si no está en users, intentar como negocio (user-business)
     const business = await getBusinessUserByNumero(numero);
     const normalizeSetupFlag = (val) => typeof val === 'string' ? val.toLowerCase() === 'true' : Boolean(val);
+    const tokens = generateToken({ id: business.id, role: "business" });
     return res.status(200).json({
       message: "Login exitoso",
       business: {
@@ -99,6 +103,7 @@ export const loginBusiness = async (req, res) => {
         isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete),
       },
       type: "business",
+      ...tokens,
     });
   } catch (error) {
     console.error("Error en login:", error);
@@ -130,6 +135,7 @@ export const loginBusinessWithPassword = async (req, res) => {
     const business = await loginBusinessUser(numeroStr, password);
 
     const normalizeSetupFlag = (val) => typeof val === "string" ? val.toLowerCase() === "true" : Boolean(val);
+    const tokens = generateToken({ id: business.id, role: "business" });
     res.status(200).json({
       message: "Login exitoso",
       business: {
@@ -141,6 +147,7 @@ export const loginBusinessWithPassword = async (req, res) => {
         banner: business.banner ?? null,
         isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete),
       },
+      ...tokens,
     });
   } catch (error) {
     console.error("Error en login business:", error);

@@ -2,7 +2,10 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import { initFirebase } from "./config/firebase.js";
+// @ts-ignore
+import { swaggerSpec } from "./config/swagger.js";
 // @ts-ignore
 import uploadRoutes from "./routes/uploadRoutes.js";
 // @ts-ignore
@@ -58,6 +61,17 @@ app.use((req, res, next) => {
     console.log("[LOGIN] 📥 Petición recibida en el servidor:", req.method, req.originalUrl, new Date().toISOString());
   }
   next();
+});
+
+// Swagger UI — documentación de la API en /api/docs
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: "Plania API Docs",
+  customCss: ".swagger-ui .topbar { display: none }",
+}));
+// Endpoint para obtener el JSON de la especificación OpenAPI
+app.get("/api/docs.json", (_req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
 });
 
 // Prueba de conectividad desde el móvil: abre en el navegador del teléfono http://TU_IP:3000/api/health
