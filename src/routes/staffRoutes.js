@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { addStaffMember, getStaff, getStaffIds, loginStaffMember, uploadStaffAvatar, updateStaffMember, getStaffName } from "../controllers/staffController.js";
+import { createStaffScheduleController, updateStaffScheduleController, deleteStaffScheduleController, listStaffSchedulesController } from "../controllers/staffSchedulesController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -28,5 +29,11 @@ router.put("/update-staff", authenticateToken, authorizeRoles("business", "staff
 
 // GET /api/get-staff-name/:id
 router.get("/get-staff-name/:id", authenticateToken, getStaffName);
+
+// Staff schedules
+router.post("/staff/:staffId/schedules", authenticateToken, authorizeRoles("business"), createStaffScheduleController);
+router.patch("/staff/:staffId/schedules/:scheduleId", authenticateToken, authorizeRoles("business", "staff"), updateStaffScheduleController);
+router.delete("/staff/:staffId/schedules/:scheduleId", authenticateToken, authorizeRoles("business", "staff"), deleteStaffScheduleController);
+router.get("/staff/:staffId/schedules", authenticateToken, listStaffSchedulesController);
 
 export default router;

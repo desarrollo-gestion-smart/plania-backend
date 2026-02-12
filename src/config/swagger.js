@@ -215,6 +215,145 @@ const options = {
             price: { type: "number" },
           },
         },
+        DaySchedule: {
+          type: "object",
+          properties: {
+            active: { type: "boolean", example: true },
+            start: { type: "string", nullable: true, example: "09:00" },
+            until: { type: "string", nullable: true, example: "18:00" },
+            breakStart: { type: "string", nullable: true, example: "13:00" },
+            breakUntil: { type: "string", nullable: true, example: "14:00" },
+          },
+        },
+        Schedule: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            businessId: { type: "number" },
+            holidays: { type: "boolean" },
+            days: {
+              type: "object",
+              properties: {
+                monday: { $ref: "#/components/schemas/DaySchedule" },
+                tuesday: { $ref: "#/components/schemas/DaySchedule" },
+                wednesday: { $ref: "#/components/schemas/DaySchedule" },
+                thursday: { $ref: "#/components/schemas/DaySchedule" },
+                friday: { $ref: "#/components/schemas/DaySchedule" },
+                saturday: { $ref: "#/components/schemas/DaySchedule" },
+                sunday: { $ref: "#/components/schemas/DaySchedule" },
+              },
+            },
+          },
+        },
+        CreateScheduleRequest: {
+          type: "object",
+          required: ["businessId", "days"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            holidays: { type: "boolean", example: false },
+            days: {
+              type: "object",
+              example: {
+                monday: { active: false },
+                tuesday: { active: true, start: "10:00", until: "20:00", breakStart: "12:00", breakUntil: "13:00" },
+              },
+              properties: {
+                monday: { $ref: "#/components/schemas/DaySchedule" },
+                tuesday: { $ref: "#/components/schemas/DaySchedule" },
+                wednesday: { $ref: "#/components/schemas/DaySchedule" },
+                thursday: { $ref: "#/components/schemas/DaySchedule" },
+                friday: { $ref: "#/components/schemas/DaySchedule" },
+                saturday: { $ref: "#/components/schemas/DaySchedule" },
+                sunday: { $ref: "#/components/schemas/DaySchedule" },
+              },
+            },
+          },
+        },
+        UpdateScheduleRequest: {
+          type: "object",
+          required: ["businessId"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            holidays: { type: "boolean" },
+            days: {
+              type: "object",
+              properties: {
+                monday: { $ref: "#/components/schemas/DaySchedule" },
+                tuesday: { $ref: "#/components/schemas/DaySchedule" },
+                wednesday: { $ref: "#/components/schemas/DaySchedule" },
+                thursday: { $ref: "#/components/schemas/DaySchedule" },
+                friday: { $ref: "#/components/schemas/DaySchedule" },
+                saturday: { $ref: "#/components/schemas/DaySchedule" },
+                sunday: { $ref: "#/components/schemas/DaySchedule" },
+              },
+            },
+          },
+        },
+        StaffSchedule: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            businessId: { type: "number" },
+            staffId: { type: "string" },
+            holidays: { type: "boolean" },
+            days: {
+              type: "object",
+              properties: {
+                monday: { $ref: "#/components/schemas/DaySchedule" },
+                tuesday: { $ref: "#/components/schemas/DaySchedule" },
+                wednesday: { $ref: "#/components/schemas/DaySchedule" },
+                thursday: { $ref: "#/components/schemas/DaySchedule" },
+                friday: { $ref: "#/components/schemas/DaySchedule" },
+                saturday: { $ref: "#/components/schemas/DaySchedule" },
+                sunday: { $ref: "#/components/schemas/DaySchedule" },
+              },
+            },
+          },
+        },
+        CreateStaffScheduleRequest: {
+          type: "object",
+          required: ["businessId", "days"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            holidays: { type: "boolean", example: false },
+            days: {
+              type: "object",
+              example: {
+                monday: { active: false },
+                wednesday: { active: true, start: "10:00", until: "18:00" },
+              },
+              properties: {
+                monday: { $ref: "#/components/schemas/DaySchedule" },
+                tuesday: { $ref: "#/components/schemas/DaySchedule" },
+                wednesday: { $ref: "#/components/schemas/DaySchedule" },
+                thursday: { $ref: "#/components/schemas/DaySchedule" },
+                friday: { $ref: "#/components/schemas/DaySchedule" },
+                saturday: { $ref: "#/components/schemas/DaySchedule" },
+                sunday: { $ref: "#/components/schemas/DaySchedule" },
+              },
+            },
+          },
+        },
+        UpdateStaffScheduleRequest: {
+          type: "object",
+          required: ["businessId"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            holidays: { type: "boolean" },
+            days: {
+              type: "object",
+              properties: {
+                monday: { $ref: "#/components/schemas/DaySchedule" },
+                tuesday: { $ref: "#/components/schemas/DaySchedule" },
+                wednesday: { $ref: "#/components/schemas/DaySchedule" },
+                thursday: { $ref: "#/components/schemas/DaySchedule" },
+                friday: { $ref: "#/components/schemas/DaySchedule" },
+                saturday: { $ref: "#/components/schemas/DaySchedule" },
+                sunday: { $ref: "#/components/schemas/DaySchedule" },
+              },
+            },
+          },
+        },
         CreateServiceRequest: {
           type: "object",
           required: ["businessId", "name", "type", "duration", "price"],
@@ -346,7 +485,7 @@ const options = {
                 horario: { type: "string" },
                 calificacion: { type: "number", nullable: true },
                 idappointment: { type: "number" },
-                state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"] },
+                state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
                 service: { $ref: "#/components/schemas/Service" },
               },
             },
@@ -356,7 +495,7 @@ const options = {
           type: "object",
           required: ["state"],
           properties: {
-            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"], example: "confirmado" },
+            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"], example: "confirmado" },
           },
         },
         UpdateAppointmentStateResponse: {
@@ -364,7 +503,7 @@ const options = {
           properties: {
             message: { type: "string", example: "Estado actualizado exitosamente" },
             idappointment: { type: "number" },
-            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"] },
+            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
           },
         },
       },
@@ -580,6 +719,56 @@ const options = {
           responses: {
             200: { description: "Listado de servicios", content: { "application/json": { schema: { $ref: "#/components/schemas/ListServicesResponse" } } } },
             400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/schedules": {
+        post: {
+          tags: ["Horarios"],
+          summary: "Crear horario disponible del negocio",
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateScheduleRequest" } } } },
+          responses: {
+            201: { description: "Horario creado", content: { "application/json": { schema: { type: "object", properties: { schedule: { $ref: "#/components/schemas/Schedule" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/schedules/{scheduleId}": {
+        patch: {
+          tags: ["Horarios"],
+          summary: "Actualizar horario del negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "scheduleId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateScheduleRequest" } } } },
+          responses: {
+            200: { description: "Horario actualizado", content: { "application/json": { schema: { type: "object", properties: { schedule: { $ref: "#/components/schemas/Schedule" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        delete: {
+          tags: ["Horarios"],
+          summary: "Eliminar horario del negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "scheduleId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", properties: { businessId: { type: "number", example: 1 } } } } },
+          },
+          responses: {
+            200: { description: "Horario eliminado", content: { "application/json": { schema: { type: "object", properties: { id: { type: "number" }, deleted: { type: "boolean" } } } } } },
+            400: { description: "No pertenece o no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/schedules/{businessId}": {
+        get: {
+          tags: ["Horarios"],
+          summary: "Listar horarios del negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            200: { description: "Lista de horarios", content: { "application/json": { schema: { type: "object", properties: { schedules: { type: "array", items: { $ref: "#/components/schemas/Schedule" } }, total: { type: "number" } } } } } },
           },
         },
       },
@@ -876,6 +1065,55 @@ const options = {
           },
         },
       },
+      "/staff/{staffId}/schedules": {
+        post: {
+          tags: ["Horarios"],
+          summary: "Crear horario de un staff",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "staffId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateStaffScheduleRequest" } } } },
+          responses: {
+            201: { description: "Horario creado", content: { "application/json": { schema: { type: "object", properties: { schedule: { $ref: "#/components/schemas/StaffSchedule" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        get: {
+          tags: ["Horarios"],
+          summary: "Listar horarios de un staff",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "staffId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            200: { description: "Lista de horarios de staff", content: { "application/json": { schema: { type: "object", properties: { schedules: { type: "array", items: { $ref: "#/components/schemas/StaffSchedule" } }, total: { type: "number" } } } } } },
+          },
+        },
+      },
+      "/staff/{staffId}/schedules/{scheduleId}": {
+        patch: {
+          tags: ["Horarios"],
+          summary: "Actualizar horario de staff",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "staffId", in: "path", required: true, schema: { type: "string" } }, { name: "scheduleId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateStaffScheduleRequest" } } } },
+          responses: {
+            200: { description: "Horario actualizado", content: { "application/json": { schema: { type: "object", properties: { schedule: { $ref: "#/components/schemas/StaffSchedule" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        delete: {
+          tags: ["Horarios"],
+          summary: "Eliminar horario de staff",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "staffId", in: "path", required: true, schema: { type: "string" } }, { name: "scheduleId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", properties: { businessId: { type: "number", example: 1 } } } } },
+          },
+          responses: {
+            200: { description: "Horario eliminado", content: { "application/json": { schema: { type: "object", properties: { id: { type: "number" }, deleted: { type: "boolean" } } } } } },
+            400: { description: "No pertenece o no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
 
       // ═══════════════════════════════════════════════════════════
       // CITAS (protegido)
@@ -920,7 +1158,7 @@ const options = {
                             staffAppointmentsHour: { type: "string" },
                             serviceType: { type: "string" },
                             serviceDuration: { type: "number", nullable: true },
-                            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"] },
+                            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
                             staffNombre: { type: "string" },
                             staffApellido: { type: "string" },
                           },
@@ -939,7 +1177,7 @@ const options = {
         patch: {
           tags: ["Citas"],
           summary: "Actualizar estado de una cita",
-          description: "Cambia el estado de una cita. Roles permitidos: business, staff. Estados válidos: pendiente, confirmado, cancelado.",
+          description: "Cambia el estado de una cita. Roles permitidos: business, staff. Estados válidos: pendiente, confirmado, cancelado, completado.",
           security: [{ bearerAuth: [] }],
           parameters: [{ name: "appointmentId", in: "path", required: true, schema: { type: "string" }, description: "ID de la cita" }],
           requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateAppointmentStateRequest" } } } },
@@ -948,6 +1186,20 @@ const options = {
             400: { description: "Estado inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             401: { description: "No autenticado" },
             403: { description: "Sin permisos" },
+            404: { description: "Cita no encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/appointments/{appointmentId}/timer": {
+        get: {
+          tags: ["Citas"],
+          summary: "Cronómetro SSE de una cita confirmada",
+          description: "Stream SSE con ticks cada segundo y evento 'finished' al terminar el servicio.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "appointmentId", in: "path", required: true, schema: { type: "string" }, description: "ID de la cita" }],
+          responses: {
+            200: { description: "Stream SSE", content: { "text/event-stream": { schema: { type: "string" } } } },
+            400: { description: "No se puede calcular final del servicio", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             404: { description: "Cita no encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },

@@ -10,7 +10,7 @@ export async function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.startsWith("Bearer ")
     ? authHeader.slice(7)
-    : null;
+    : (typeof req.query?.access_token === "string" ? req.query.access_token : null);
 
   if (!token) {
     return res.status(401).json({ error: "Token de acceso requerido" });

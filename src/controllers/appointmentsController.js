@@ -1,3 +1,4 @@
+import admin from "firebase-admin";
 import { createAppointment, getAppointmentsByBusiness, updateAppointmentState, APPOINTMENT_STATES } from "../services/firestoreService.js";
 
 export const createAppointmentController = async (req, res) => {
@@ -91,6 +92,79 @@ export const listAppointmentsByBusiness = async (req, res) => {
     return res.status(200).json({ appointments: results });
   } catch (error) {
     const msg = error?.message || "Error obteniendo citas";
+    return res.status(500).json({ error: msg });
+  }
+};
+
+export const appointmentTimerStreamController = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    if (!appointmentId) {
+      return res.status(400).json({ error: "Parámetro appointmentId es requerido" });
+    }
+    const docRef = admin.firestore().collection("appointments").doc(String(appointmentId));
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "Cita no encontrada" });
+    }
+    const data = snap.data();
+    let endMs = typeof data.endAtEpoch === "number" ? data.endAtEpoch : null;
+    if (!endMs) {
+      const dateStr = String(data.staffdates ?? data.date ?? "");
+      const hourStr = String(data.staffAppointmentsHour ?? data.horario ?? "");
+      const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(dateStr);
+      const hm = /^([0-9]{2}):([0-9]{2})$/.exec(hourStr);
+      let durationMin = typeof data.serviceDuration === "number" ? data.serviceDuration : null;
+      if (!durationMin || durationMin <= 0) {
+        const svcId = data.serviceId ?? null;
+        if (svcId != null) {
+          const svcDoc = await admin.firestore().collection("services").doc(String(svcId)).get();
+          if (svcDoc.exists) {
+            const svc = svcDoc.data();
+            if (typeof svc.duration === "number" && svc.duration > 0) {
+              durationMin = Number(svc.duration);
+            }
+          }
+        }
+      }
+      if (m && hm && durationMin && durationMin > 0) {
+        const d = Number(m[1]);
+        const mo = Number(m[2]);
+        const y = Number(m[3]);
+        const hh = Number(hm[1]);
+        const mm = Number(hm[2]);
+        const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
+        endMs = start.getTime() + durationMin * 60000;
+      }
+    }
+    if (!endMs) {
+      return res.status(400).json({ error: "No se puede calcular el final del servicio" });
+    }
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    const now = Date.now();
+    const initPayload = { appointmentId: Number(appointmentId), endAtEpoch: endMs, now, timeLeftMs: Math.max(endMs - now, 0) };
+    res.write(`event: init\ndata: ${JSON.stringify(initPayload)}\n\n`);
+    let interval = null;
+    const sendTick = () => {
+      const t = Date.now();
+      const left = endMs - t;
+      if (left <= 0) {
+        res.write(`event: finished\ndata: ${JSON.stringify({ appointmentId: Number(appointmentId), finishedAtEpoch: t })}\n\n`);
+        clearInterval(interval);
+        res.end();
+      } else {
+        res.write(`event: tick\ndata: ${JSON.stringify({ timeLeftMs: left })}\n\n`);
+      }
+    };
+    sendTick();
+    interval = setInterval(sendTick, 1000);
+    req.on("close", () => {
+      clearInterval(interval);
+    });
+  } catch (error) {
+    const msg = error?.message || "Error iniciando cronómetro";
     return res.status(500).json({ error: msg });
   }
 };

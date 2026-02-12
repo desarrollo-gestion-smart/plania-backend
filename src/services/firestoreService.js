@@ -631,7 +631,7 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
   }
 };
 
-export const APPOINTMENT_STATES = ["pendiente", "confirmado", "cancelado"];
+export const APPOINTMENT_STATES = ["pendiente", "confirmado", "cancelado", "completado"];
 
 export const createAppointment = async ({ businessId, staffId, serviceId, serviceType, serviceDuration, date, horario, calificacion }) => {
   try {
@@ -765,10 +765,49 @@ export const updateAppointmentState = async (appointmentId, newState) => {
       throw new Error("Cita no encontrada");
     }
 
-    await docRef.update({
+    const patch = {
       state: newState,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (newState === "confirmado") {
+      const data = doc.data();
+      const dateStr = String(data.staffdates ?? data.date ?? "");
+      const hourStr = String(data.staffAppointmentsHour ?? data.horario ?? "");
+      const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(dateStr);
+      const hm = /^([0-9]{2}):([0-9]{2})$/.exec(hourStr);
+      let durationMin = typeof data.serviceDuration === "number" ? data.serviceDuration : null;
+      if (!durationMin || durationMin <= 0) {
+        const svcId = data.serviceId ?? null;
+        if (svcId != null) {
+          const svcDoc = await db.collection("services").doc(String(svcId)).get();
+          if (svcDoc.exists) {
+            const svc = svcDoc.data();
+            if (typeof svc.duration === "number" && svc.duration > 0) {
+              durationMin = Number(svc.duration);
+            }
+          }
+        }
+      }
+      if (m && hm && durationMin && durationMin > 0) {
+        const d = Number(m[1]);
+        const mo = Number(m[2]);
+        const y = Number(m[3]);
+        const hh = Number(hm[1]);
+        const mm = Number(hm[2]);
+        const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
+        const startMs = start.getTime();
+        const endMs = startMs + durationMin * 60000;
+        const endDt = new Date(endMs);
+        const endHH = String(endDt.getHours()).padStart(2, "0");
+        const endMM = String(endDt.getMinutes()).padStart(2, "0");
+        patch.startAtEpoch = startMs;
+        patch.endAtEpoch = endMs;
+        patch.endAt = `${endHH}:${endMM}`;
+      }
+    }
+
+    await docRef.update(patch);
 
     return { idappointment: Number(appointmentId), state: newState };
   } catch (error) {
@@ -879,6 +918,227 @@ export const getStaffNameById = async (staffId) => {
     return { id: doc.id, nombre: data.nombre };
   } catch (error) {
     console.error("Firestore error obteniendo nombre de staff:", error);
+    throw new Error(error.message);
+  }
+};
+
+const allowedDays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+const isValidTime = (t) => /^([0-9]{2}):([0-9]{2})$/.test(String(t));
+const normalizeDays = (input) => {
+  const out = {};
+  const hasObj = input && typeof input === "object";
+  allowedDays.forEach((day) => {
+    const v = hasObj ? input[day] : undefined;
+    const active = Boolean(v?.active);
+    let start = v?.start != null ? String(v.start) : null;
+    let until = v?.until != null ? String(v.until) : null;
+    let breakStart = v?.breakStart != null ? String(v.breakStart) : null;
+    let breakUntil = v?.breakUntil != null ? String(v.breakUntil) : null;
+    if (active) {
+      if (!isValidTime(start) || !isValidTime(until)) {
+        throw new Error("start/until inválidos");
+      }
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = until.split(":").map(Number);
+      if (sh > eh || (sh === eh && sm >= em)) {
+        throw new Error("start debe ser menor a until");
+      }
+      if ((breakStart && !isValidTime(breakStart)) || (breakUntil && !isValidTime(breakUntil))) {
+        throw new Error("breakStart/breakUntil inválidos");
+      }
+      if ((breakStart && !breakUntil) || (!breakStart && breakUntil)) {
+        throw new Error("breakStart y breakUntil deben enviarse juntos");
+      }
+      if (breakStart && breakUntil) {
+        const [bsH, bsM] = breakStart.split(":").map(Number);
+        const [beH, beM] = breakUntil.split(":").map(Number);
+        if (bsH > beH || (bsH === beH && bsM >= beM)) {
+          throw new Error("breakStart debe ser menor a breakUntil");
+        }
+        if (bsH < sh || (bsH === sh && bsM < sm) || beH > eh || (beH === eh && beM > em)) {
+          throw new Error("break fuera del rango [start, until]");
+        }
+      }
+    } else {
+      start = null;
+      until = null;
+      breakStart = null;
+      breakUntil = null;
+    }
+    out[day] = { active, start, until, breakStart, breakUntil };
+  });
+  return out;
+};
+
+export const createBusinessSchedule = async (businessId, payload) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!bizIdNum) throw new Error("businessId requerido");
+    if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+    const holidays = Boolean(payload.holidays);
+    const daysObj = normalizeDays(payload.days);
+    const userQuery = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    if (userQuery.empty) throw new Error("Business not found");
+    const newId = await getNextId("scheduleId");
+    const ref = db.collection("schedules").doc(String(newId));
+    const doc = {
+      id: newId,
+      businessId: bizIdNum,
+      days: daysObj,
+      holidays,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await ref.set(doc);
+    return doc;
+  } catch (error) {
+    console.error("Firestore error creando horario de negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateBusinessSchedule = async (businessId, scheduleId, payload) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!bizIdNum) throw new Error("businessId requerido");
+    const sid = String(scheduleId);
+    const ref = db.collection("schedules").doc(sid);
+    const snap = await ref.get();
+    if (!snap.exists) throw new Error("Schedule not found");
+    const data = snap.data();
+    if (Number(data.businessId) !== bizIdNum) throw new Error("Schedule no pertenece al negocio");
+    const patch = {};
+    if (payload.days !== undefined) {
+      if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+      patch.days = normalizeDays(payload.days);
+    }
+    if (payload.holidays !== undefined) {
+      patch.holidays = Boolean(payload.holidays);
+    }
+    patch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await ref.update(patch);
+    const updated = await ref.get();
+    return updated.data();
+  } catch (error) {
+    console.error("Firestore error actualizando horario de negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const deleteBusinessSchedule = async (businessId, scheduleId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!bizIdNum) throw new Error("businessId requerido");
+    const sid = String(scheduleId);
+    const ref = db.collection("schedules").doc(sid);
+    const snap = await ref.get();
+    if (!snap.exists) throw new Error("Schedule not found");
+    const data = snap.data();
+    if (Number(data.businessId) !== bizIdNum) throw new Error("Schedule no pertenece al negocio");
+    await ref.delete();
+    return { id: Number(scheduleId), deleted: true };
+  } catch (error) {
+    console.error("Firestore error eliminando horario de negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getBusinessSchedules = async (businessId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const snap = await db.collection("schedules").where("businessId", "==", bizIdNum).get();
+    return snap.docs.map((d) => d.data());
+  } catch (error) {
+    console.error("Firestore error listando horarios de negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const createStaffSchedule = async (businessId, staffId, payload) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const stid = String(staffId);
+    if (!bizIdNum || !stid) throw new Error("businessId y staffId requeridos");
+    const staffDoc = await db.collection("staff").doc(stid).get();
+    if (!staffDoc.exists) throw new Error("Staff not found");
+    const sdata = staffDoc.data();
+    if (Number(sdata.businessId) !== bizIdNum) throw new Error("Staff no pertenece al negocio");
+    if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+    const holidays = Boolean(payload.holidays);
+    const daysObj = normalizeDays(payload.days);
+    const newId = await getNextId("staffScheduleId");
+    const ref = db.collection("staff-schedules").doc(String(newId));
+    const doc = {
+      id: newId,
+      businessId: bizIdNum,
+      staffId: stid,
+      days: daysObj,
+      holidays,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await ref.set(doc);
+    return doc;
+  } catch (error) {
+    console.error("Firestore error creando horario de staff:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateStaffSchedule = async (businessId, staffId, scheduleId, payload) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const stid = String(staffId);
+    const sid = String(scheduleId);
+    if (!bizIdNum || !stid) throw new Error("businessId y staffId requeridos");
+    const ref = db.collection("staff-schedules").doc(sid);
+    const snap = await ref.get();
+    if (!snap.exists) throw new Error("Schedule not found");
+    const data = snap.data();
+    if (Number(data.businessId) !== bizIdNum || String(data.staffId) !== stid) throw new Error("Schedule no pertenece al staff o negocio");
+    const patch = {};
+    if (payload.days !== undefined) {
+      if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+      patch.days = normalizeDays(payload.days);
+    }
+    if (payload.holidays !== undefined) {
+      patch.holidays = Boolean(payload.holidays);
+    }
+    patch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await ref.update(patch);
+    const updated = await ref.get();
+    return updated.data();
+  } catch (error) {
+    console.error("Firestore error actualizando horario de staff:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const deleteStaffSchedule = async (businessId, staffId, scheduleId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const stid = String(staffId);
+    const sid = String(scheduleId);
+    const ref = db.collection("staff-schedules").doc(sid);
+    const snap = await ref.get();
+    if (!snap.exists) throw new Error("Schedule not found");
+    const data = snap.data();
+    if (Number(data.businessId) !== bizIdNum || String(data.staffId) !== stid) throw new Error("Schedule no pertenece al staff o negocio");
+    await ref.delete();
+    return { id: Number(scheduleId), deleted: true };
+  } catch (error) {
+    console.error("Firestore error eliminando horario de staff:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getStaffSchedules = async (staffId) => {
+  try {
+    const stid = String(staffId);
+    const snap = await db.collection("staff-schedules").where("staffId", "==", stid).get();
+    return snap.docs.map((d) => d.data());
+  } catch (error) {
+    console.error("Firestore error listando horarios de staff:", error);
     throw new Error(error.message);
   }
 };
