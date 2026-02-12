@@ -103,6 +103,7 @@ const options = {
             },
             type: { type: "string", example: "user" },
             planiaToken: { type: "string", description: "JWT token de autenticación" },
+            refreshToken: { type: "string", description: "JWT de refresh (también en cookie HttpOnly)" },
           },
         },
         LoginBusinessResponse: {
@@ -123,6 +124,7 @@ const options = {
             },
             type: { type: "string", example: "business" },
             planiaToken: { type: "string", description: "JWT token de autenticación" },
+            refreshToken: { type: "string", description: "JWT de refresh (también en cookie HttpOnly)" },
           },
         },
 
@@ -180,6 +182,26 @@ const options = {
               },
             },
             planiaToken: { type: "string", description: "JWT token de autenticación" },
+            refreshToken: { type: "string", description: "JWT de refresh (también en cookie HttpOnly)" },
+          },
+        },
+        RefreshTokenRequest: {
+          type: "object",
+          properties: {
+            refreshToken: { type: "string", description: "Opcional si se usa cookie HttpOnly" },
+          },
+        },
+        RefreshTokenResponse: {
+          type: "object",
+          properties: {
+            planiaToken: { type: "string" },
+            refreshToken: { type: "string" },
+          },
+        },
+        LogoutResponse: {
+          type: "object",
+          properties: {
+            message: { type: "string", example: "Logout exitoso" },
           },
         },
         VerifyBusinessRequest: {
@@ -263,7 +285,8 @@ const options = {
             businessId: { type: "number", example: 1 },
             staffId: { type: "string", example: "5" },
             serviceType: { type: "string", example: "Corte de cabello" },
-            date: { type: "string", example: "2026-03-15" },
+            serviceDuration: { type: "number", description: "Duración del servicio en minutos", example: 30 },
+            date: { type: "string", example: "15/03/2026", description: "Formato dd/MM/YYYY" },
             horario: { type: "string", example: "10:00" },
             calificacion: { type: "number", nullable: true, example: 5 },
           },
@@ -271,7 +294,34 @@ const options = {
         CreateAppointmentResponse: {
           type: "object",
           properties: {
-            appointment: { type: "object" },
+            appointment: {
+              type: "object",
+              properties: {
+                businessId: { type: "number" },
+                idappointment: { type: "number" },
+                staffdates: { type: "string" },
+                staffAppoinments: { type: "string" },
+                staffAppointmentsHour: { type: "string" },
+                serviceType: { type: "string" },
+                serviceDuration: { type: "number", nullable: true },
+                state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"] },
+              },
+            },
+          },
+        },
+        UpdateAppointmentStateRequest: {
+          type: "object",
+          required: ["state"],
+          properties: {
+            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"], example: "confirmado" },
+          },
+        },
+        UpdateAppointmentStateResponse: {
+          type: "object",
+          properties: {
+            message: { type: "string", example: "Estado actualizado exitosamente" },
+            idappointment: { type: "number" },
+            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"] },
           },
         },
       },
@@ -391,6 +441,38 @@ const options = {
           responses: {
             200: { description: "Login exitoso", content: { "application/json": { schema: { $ref: "#/components/schemas/LoginBusinessWithTokenResponse" } } } },
             400: { description: "Credenciales incorrectas", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/logout": {
+        post: {
+          tags: ["Auth - Usuarios", "Auth - Negocios"],
+          summary: "Logout (revoca access y refresh)",
+          description: "Cierra sesión: revoca el access token actual y el refresh token si se envía cookie o body.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: false,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/RefreshTokenRequest" } } },
+          },
+          responses: {
+            200: { description: "Logout exitoso", content: { "application/json": { schema: { $ref: "#/components/schemas/LogoutResponse" } } } },
+            401: { description: "No autenticado o token revocado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
+          },
+        },
+      },
+      "/refresh-token": {
+        post: {
+          tags: ["Auth - Usuarios", "Auth - Negocios"],
+          summary: "Renovar access token con refresh",
+          description: "Emite nuevo planiaToken y rota el refresh token. Lee refresh desde cookie o body.",
+          requestBody: {
+            required: false,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/RefreshTokenRequest" } } },
+          },
+          responses: {
+            200: { description: "Tokens renovados", content: { "application/json": { schema: { $ref: "#/components/schemas/RefreshTokenResponse" } } } },
+            401: { description: "Refresh expirado o revocado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
+            403: { description: "Refresh inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
           },
         },
       },
@@ -713,9 +795,52 @@ const options = {
           responses: {
             200: {
               description: "Lista de citas",
-              content: { "application/json": { schema: { type: "object", properties: { appointments: { type: "array", items: { type: "object" } } } } } },
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      appointments: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            businessId: { type: "number" },
+                            idappointment: { type: "number" },
+                            staffdates: { type: "string" },
+                            staffAppoinments: { type: "number" },
+                            staffAppointmentsHour: { type: "string" },
+                            serviceType: { type: "string" },
+                            serviceDuration: { type: "number", nullable: true },
+                            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"] },
+                            staffNombre: { type: "string" },
+                            staffApellido: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
             401: { description: "No autenticado" },
+          },
+        },
+      },
+      "/appointments/{appointmentId}/state": {
+        patch: {
+          tags: ["Citas"],
+          summary: "Actualizar estado de una cita",
+          description: "Cambia el estado de una cita. Roles permitidos: business, staff. Estados válidos: pendiente, confirmado, cancelado.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "appointmentId", in: "path", required: true, schema: { type: "string" }, description: "ID de la cita" }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateAppointmentStateRequest" } } } },
+          responses: {
+            200: { description: "Estado actualizado", content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateAppointmentStateResponse" } } } },
+            400: { description: "Estado inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Cita no encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },
       },

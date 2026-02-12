@@ -1,11 +1,12 @@
 import { verifyToken } from "../utils/jwt.js";
+import admin from "firebase-admin";
 
 /**
  * Middleware de autenticación JWT.
  * Verifica el token en el header Authorization: Bearer <token>
  * Si es válido, adjunta el payload decodificado a req.user
  */
-export function authenticateToken(req, res, next) {
+export async function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.startsWith("Bearer ")
     ? authHeader.slice(7)
@@ -17,7 +18,13 @@ export function authenticateToken(req, res, next) {
 
   try {
     const decoded = verifyToken(token);
-    req.user = decoded; // { userId, role, iat, exp }
+    if (decoded.jti) {
+      const doc = await admin.firestore().collection("revokedTokens").doc(decoded.jti).get();
+      if (doc.exists) {
+        return res.status(401).json({ error: "Token revocado", code: "TOKEN_REVOKED" });
+      }
+    }
+    req.user = decoded; // { userId, role, iat, exp, jti? }
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {

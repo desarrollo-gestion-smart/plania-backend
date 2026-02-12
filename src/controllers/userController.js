@@ -4,7 +4,7 @@ import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase 
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
 import { getBusinessById } from "../services/firestoreService.js";
-import { generateToken } from "../utils/jwt.js";
+import { generateToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 
 const db = admin.firestore();
 
@@ -77,11 +77,28 @@ export const loginBusiness = async (req, res) => {
     try {
       const user = await getAppUserByNumero(numero);
       const tokens = generateToken({ id: user.id, role: "user" });
+      const refresh = generateRefreshToken({ id: user.id, role: "user" });
+      const decodedR = verifyRefreshToken(refresh.refreshToken);
+      await admin.firestore().collection("refreshTokens").doc(decodedR.jti).set({
+        userId: user.id,
+        role: "user",
+        expiresAt: admin.firestore.Timestamp.fromMillis(decodedR.exp * 1000),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        revoked: false,
+      });
+      const secure = process.env.NODE_ENV === "production";
+      res.cookie("refreshToken", refresh.refreshToken, {
+        httpOnly: true,
+        secure,
+        sameSite: secure ? "none" : "lax",
+        expires: new Date(decodedR.exp * 1000),
+      });
       return res.status(200).json({
         message: "Login exitoso",
         user: { id: user.id, nombre: user.nombre, numero: user.numero, status: user.status },
         type: "user",
         ...tokens,
+        refreshToken: refresh.refreshToken,
       });
     } catch (e) {
       if (e.message !== "Credenciales incorrectas") throw e;
@@ -91,6 +108,22 @@ export const loginBusiness = async (req, res) => {
     const business = await getBusinessUserByNumero(numero);
     const normalizeSetupFlag = (val) => typeof val === 'string' ? val.toLowerCase() === 'true' : Boolean(val);
     const tokens = generateToken({ id: business.id, role: "business" });
+    const refresh = generateRefreshToken({ id: business.id, role: "business" });
+    const decodedR = verifyRefreshToken(refresh.refreshToken);
+    await admin.firestore().collection("refreshTokens").doc(decodedR.jti).set({
+      userId: business.id,
+      role: "business",
+      expiresAt: admin.firestore.Timestamp.fromMillis(decodedR.exp * 1000),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      revoked: false,
+    });
+    const secure = process.env.NODE_ENV === "production";
+    res.cookie("refreshToken", refresh.refreshToken, {
+      httpOnly: true,
+      secure,
+      sameSite: secure ? "none" : "lax",
+      expires: new Date(decodedR.exp * 1000),
+    });
     return res.status(200).json({
       message: "Login exitoso",
       business: {
@@ -104,6 +137,7 @@ export const loginBusiness = async (req, res) => {
       },
       type: "business",
       ...tokens,
+      refreshToken: refresh.refreshToken,
     });
   } catch (error) {
     console.error("Error en login:", error);
@@ -136,6 +170,22 @@ export const loginBusinessWithPassword = async (req, res) => {
 
     const normalizeSetupFlag = (val) => typeof val === "string" ? val.toLowerCase() === "true" : Boolean(val);
     const tokens = generateToken({ id: business.id, role: "business" });
+    const refresh = generateRefreshToken({ id: business.id, role: "business" });
+    const decodedR = verifyRefreshToken(refresh.refreshToken);
+    await admin.firestore().collection("refreshTokens").doc(decodedR.jti).set({
+      userId: business.id,
+      role: "business",
+      expiresAt: admin.firestore.Timestamp.fromMillis(decodedR.exp * 1000),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      revoked: false,
+    });
+    const secure = process.env.NODE_ENV === "production";
+    res.cookie("refreshToken", refresh.refreshToken, {
+      httpOnly: true,
+      secure,
+      sameSite: secure ? "none" : "lax",
+      expires: new Date(decodedR.exp * 1000),
+    });
     res.status(200).json({
       message: "Login exitoso",
       business: {
@@ -148,6 +198,7 @@ export const loginBusinessWithPassword = async (req, res) => {
         isInitialSetupComplete: normalizeSetupFlag(business.isInitialSetupComplete),
       },
       ...tokens,
+      refreshToken: refresh.refreshToken,
     });
   } catch (error) {
     console.error("Error en login business:", error);

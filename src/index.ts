@@ -7,6 +7,8 @@ import { initFirebase } from "./config/firebase.js";
 // @ts-ignore
 import { swaggerSpec } from "./config/swagger.js";
 // @ts-ignore
+import cookieParser from "cookie-parser";
+// @ts-ignore
 import uploadRoutes from "./routes/uploadRoutes.js";
 // @ts-ignore
 import userRoutes from "./routes/userRoutes.js";
@@ -52,6 +54,7 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 // Handle preflight for API routes (wildcard requires a named param with path-to-regexp v7)
 app.options("/api/*splat", cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "25mb" }));
 app.use(express.urlencoded({ limit: process.env.URLENCODED_BODY_LIMIT || "25mb", extended: true }));
 

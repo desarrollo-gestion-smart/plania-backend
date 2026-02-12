@@ -20,7 +20,7 @@ export const addStaffMember = async (req, res) => {
       return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
     }
 
-    const staff = await addStaff(businessId, nombre, numero, password, null, apellido, staffId);
+    const staff = await addStaff(Number(businessId), nombre, numero, password, null, apellido, staffId);
 
     res.status(201).json({ message: "Miembro del personal agregado exitosamente", staff: { id: staff.id, businessId: staff.businessId, nombre: staff.nombre, apellido: staff.apellido || '', numero: staff.numero } });
   } catch (error) {
@@ -37,7 +37,7 @@ export const getStaff = async (req, res) => {
       return res.status(400).json({ error: "businessId es requerido" });
     }
 
-    const staff = await getStaffByBusiness(businessId);
+    const staff = await getStaffByBusiness(Number(businessId));
 
     res.status(200).json({ staff });
   } catch (error) {

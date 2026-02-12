@@ -631,10 +631,16 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
   }
 };
 
-export const createAppointment = async ({ businessId, staffId, serviceType, date, horario, calificacion }) => {
+export const APPOINTMENT_STATES = ["pendiente", "confirmado", "cancelado"];
+
+export const createAppointment = async ({ businessId, staffId, serviceType, serviceDuration, date, horario, calificacion }) => {
   try {
     if (!businessId || !staffId || !serviceType || !date || !horario) {
       throw new Error("Campos requeridos: businessId, staffId, serviceType, date, horario");
+    }
+
+    if (serviceDuration !== undefined && (typeof serviceDuration !== 'number' || serviceDuration <= 0)) {
+      throw new Error("serviceDuration debe ser un número positivo (minutos)");
     }
 
     // Validate business exists
@@ -679,6 +685,8 @@ export const createAppointment = async ({ businessId, staffId, serviceType, date
       staffAppoinments: String(staffId),
       staffAppointmentsHour: String(horario),
       serviceType: String(serviceType),
+      serviceDuration: typeof serviceDuration === 'number' ? serviceDuration : null,
+      state: "pendiente",
     };
 
     await appointmentRef.set(appointment);
@@ -688,9 +696,11 @@ export const createAppointment = async ({ businessId, staffId, serviceType, date
       id: newId,
       staffId: String(staffId),
       serviceType: String(serviceType),
+      serviceDuration: typeof serviceDuration === 'number' ? serviceDuration : null,
       date: String(date),
       horario: String(horario),
       calificacion: typeof calificacion === 'number' ? calificacion : null,
+      state: "pendiente",
     };
     await businessRef.update({
       appointments: admin.firestore.FieldValue.arrayUnion(summary),
@@ -708,6 +718,30 @@ export const createAppointment = async ({ businessId, staffId, serviceType, date
     return appointment;
   } catch (error) {
     console.error("Firestore error creando cita:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateAppointmentState = async (appointmentId, newState) => {
+  try {
+    if (!APPOINTMENT_STATES.includes(newState)) {
+      throw new Error(`Estado inválido. Valores permitidos: ${APPOINTMENT_STATES.join(", ")}`);
+    }
+
+    const docRef = db.collection("appointments").doc(String(appointmentId));
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      throw new Error("Cita no encontrada");
+    }
+
+    await docRef.update({
+      state: newState,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { idappointment: Number(appointmentId), state: newState };
+  } catch (error) {
+    console.error("Firestore error actualizando estado de cita:", error);
     throw new Error(error.message);
   }
 };
@@ -734,6 +768,8 @@ export const getAppointmentsByBusiness = async (businessId) => {
         staffAppoinments: Number(data.staffAppoinments ?? data.staffId ?? 0),
         staffAppointmentsHour: String(data.staffAppointmentsHour ?? data.horario ?? ""),
         serviceType: String(data.serviceType ?? ""),
+        serviceDuration: data.serviceDuration ?? null,
+        state: data.state ?? "pendiente",
         staffNombre: staffInfo.nombre,
         staffApellido: staffInfo.apellido,
       };
