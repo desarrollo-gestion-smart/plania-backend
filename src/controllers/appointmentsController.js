@@ -4,15 +4,17 @@ import { createAppointment, getAppointmentsByBusiness, updateAppointmentState, A
 export const createAppointmentController = async (req, res) => {
   try {
     const { businessId, staffId, date, horario, calificacion } = req.body || {};
+    const bodyUserId = req.body?.userId ?? req.body?.user;
     const serviceId = req.body?.serviceId ?? req.body?.service;
 
-    if (!businessId || !staffId || !date || !horario) {
-      return res.status(400).json({ error: "Faltan campos requeridos: businessId, staffId, date, horario" });
+    if (!businessId || !staffId || !date || !horario || !bodyUserId) {
+      return res.status(400).json({ error: "Faltan campos requeridos: businessId, staffId, userId, date, horario" });
     }
 
     const appointment = await createAppointment({
       businessId: Number(businessId),
       staffId: String(staffId),
+      userId: Number(bodyUserId),
       serviceId: serviceId !== undefined ? Number(serviceId) : undefined,
       date: String(date),
       horario,
@@ -45,6 +47,11 @@ export const createAppointmentController = async (req, res) => {
         service: serviceObj,
         idappointment: appointment.idappointment,
         state: appointment.state,
+        user: {
+          id: appointment.userId,
+          nombre: appointment.userNombre ?? "",
+          numero: appointment.userNumero ?? "",
+        },
       }
     });
   } catch (error) {

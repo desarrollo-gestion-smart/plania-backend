@@ -462,10 +462,11 @@ const options = {
         // ─── Appointments ──────────────────────────────────────
         CreateAppointmentRequest: {
           type: "object",
-          required: ["businessId", "staffId", "date", "horario"],
+          required: ["businessId", "staffId", "userId", "date", "horario"],
           properties: {
             businessId: { type: "number", example: 1 },
             staffId: { type: "string", example: "5" },
+            userId: { type: "number", example: 42, description: "ID de usuario de la app" },
             service: { type: "number", example: 1, description: "Service ID seleccionado" },
             serviceDuration: { type: "number", description: "Si no se envía y service está definido, se toma del servicio", example: 30 },
             date: { type: "string", example: "15/03/2026", description: "Formato dd/MM/YYYY" },
@@ -487,6 +488,14 @@ const options = {
                 idappointment: { type: "number" },
                 state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
                 service: { $ref: "#/components/schemas/Service" },
+                user: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number" },
+                    nombre: { type: "string" },
+                    numero: { type: "string" },
+                  },
+                },
               },
             },
           },
@@ -1161,6 +1170,9 @@ const options = {
                             state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
                             staffNombre: { type: "string" },
                             staffApellido: { type: "string" },
+                            userId: { type: "number", nullable: true },
+                            userNombre: { type: "string" },
+                            userNumero: { type: "string" },
                           },
                         },
                       },

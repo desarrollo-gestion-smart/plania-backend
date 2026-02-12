@@ -633,10 +633,10 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
 
 export const APPOINTMENT_STATES = ["pendiente", "confirmado", "cancelado", "completado"];
 
-export const createAppointment = async ({ businessId, staffId, serviceId, serviceType, serviceDuration, date, horario, calificacion }) => {
+export const createAppointment = async ({ businessId, staffId, userId, serviceId, serviceType, serviceDuration, date, horario, calificacion }) => {
   try {
-    if (!businessId || !staffId || !date || !horario) {
-      throw new Error("Campos requeridos: businessId, staffId, date, horario");
+    if (!businessId || !staffId || !date || !horario || !userId) {
+      throw new Error("Campos requeridos: businessId, staffId, userId, date, horario");
     }
 
     let finalDuration = typeof serviceDuration === 'number' ? serviceDuration : undefined;
@@ -649,7 +649,6 @@ export const createAppointment = async ({ businessId, staffId, serviceId, servic
     }
     const businessRef = businessQuery.docs[0].ref;
 
-    // Validate staff exists and belongs to business
     const staffDoc = await db.collection("staff").doc(String(staffId)).get();
     if (!staffDoc.exists) {
       throw new Error("Staff not found");
@@ -658,6 +657,11 @@ export const createAppointment = async ({ businessId, staffId, serviceId, servic
     if (Number(staffData.businessId) !== Number(businessId)) {
       throw new Error("Staff no pertenece al negocio");
     }
+    const userDoc = await db.collection("users").doc(String(userId)).get();
+    if (!userDoc.exists) {
+      throw new Error("User not found");
+    }
+    const userData = userDoc.data();
 
     // Validate date format dd/MM/YYYY and actual calendar date
     const match = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(String(date));
@@ -706,7 +710,6 @@ export const createAppointment = async ({ businessId, staffId, serviceId, servic
     const newId = await getNextId('appointmentId');
     const appointmentRef = db.collection("appointments").doc(String(newId));
 
-    // Guardar únicamente los campos solicitados en appointments
     const appointment = {
       businessId: Number(businessId),
       idappointment: newId,
@@ -717,11 +720,13 @@ export const createAppointment = async ({ businessId, staffId, serviceId, servic
       serviceType: finalType ? String(finalType) : "",
       serviceDuration: typeof finalDuration === 'number' ? finalDuration : null,
       state: "pendiente",
+      userId: Number(userId),
+      userNombre: userData?.nombre ?? "",
+      userNumero: userData?.numero ?? "",
     };
 
     await appointmentRef.set(appointment);
 
-    // Push summary to user-business appointments array
     const summary = {
       id: newId,
       staffId: String(staffId),
@@ -732,6 +737,9 @@ export const createAppointment = async ({ businessId, staffId, serviceId, servic
       horario: String(horario),
       calificacion: typeof calificacion === 'number' ? calificacion : null,
       state: "pendiente",
+      userId: Number(userId),
+      userNombre: userData?.nombre ?? "",
+      userNumero: userData?.numero ?? "",
     };
     await businessRef.update({
       appointments: admin.firestore.FieldValue.arrayUnion(summary),
@@ -844,7 +852,6 @@ export const getAppointmentsByBusiness = async (businessId) => {
       const staffInfo = staffMap.get(staffId) || { nombre: '', apellido: '' };
       const serviceId = data.serviceId ?? null;
       const svcInfo = serviceId != null ? (svcMap.get(Number(serviceId)) || null) : null;
-      // Asegurar salida con los nombres solicitados
       return {
         businessId: Number(data.businessId ?? businessId),
         idappointment: Number(data.idappointment ?? Number(d.id)),
@@ -857,6 +864,9 @@ export const getAppointmentsByBusiness = async (businessId) => {
         staffNombre: staffInfo.nombre,
         staffApellido: staffInfo.apellido,
         service: svcInfo,
+        userId: typeof data.userId === "number" ? data.userId : (data.userId ? Number(data.userId) : null),
+        userNombre: data.userNombre ?? "",
+        userNumero: data.userNumero ?? "",
       };
     });
     return results;
