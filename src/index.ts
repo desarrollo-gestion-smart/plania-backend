@@ -16,6 +16,8 @@ import userRoutes from "./routes/userRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
 // @ts-ignore
 import appointmentsRoutes from "./routes/appointmentsRoutes.js";
+// @ts-ignore
+import servicesRoutes from "./routes/servicesRoutes.js";
 
 dotenv.config();
 
@@ -86,6 +88,7 @@ app.use("/api", uploadRoutes);
 app.use("/api", userRoutes);
 app.use("/api", staffRoutes);
 app.use("/api", appointmentsRoutes);
+app.use("/api", servicesRoutes);
 
 const envPort = process.env.PORT;
 const PORT = envPort && !isNaN(Number(envPort)) ? Number(envPort) : 3000;

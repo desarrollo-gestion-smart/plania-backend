@@ -2,26 +2,53 @@ import { createAppointment, getAppointmentsByBusiness, updateAppointmentState, A
 
 export const createAppointmentController = async (req, res) => {
   try {
-    const { businessId, staffId, serviceType, serviceDuration, date, horario, calificacion } = req.body || {};
+    const { businessId, staffId, date, horario, calificacion } = req.body || {};
+    const serviceId = req.body?.serviceId ?? req.body?.service;
 
-    if (!businessId || !staffId || !serviceType || !date || !horario) {
-      return res.status(400).json({ error: "Faltan campos requeridos: businessId, staffId, serviceType, date, horario" });
+    if (!businessId || !staffId || !date || !horario) {
+      return res.status(400).json({ error: "Faltan campos requeridos: businessId, staffId, date, horario" });
     }
 
     const appointment = await createAppointment({
       businessId: Number(businessId),
       staffId: String(staffId),
-      serviceType,
-      serviceDuration: typeof serviceDuration === 'number' ? serviceDuration : undefined,
+      serviceId: serviceId !== undefined ? Number(serviceId) : undefined,
       date: String(date),
       horario,
       calificacion: typeof calificacion === 'number' ? calificacion : undefined,
     });
 
-    return res.status(201).json({ appointment });
+    let serviceObj = null;
+    if (appointment.serviceId != null) {
+      // Map services by business to avoid extra queries? For single create, fetch directly.
+      const svcDoc = await (await import("firebase-admin")).default.firestore().collection("services").doc(String(appointment.serviceId)).get();
+      if (svcDoc.exists) {
+        const s = svcDoc.data();
+        serviceObj = {
+          id: s.id ?? appointment.serviceId,
+          name: s.name ?? "",
+          type: s.type ?? "",
+          duration: s.duration ?? null,
+          price: s.price ?? null,
+        };
+      }
+    }
+
+    return res.status(201).json({
+      appointment: {
+        businessId: appointment.businessId,
+        staffId: String(appointment.staffAppoinments),
+        date: String(appointment.staffdates),
+        horario: String(appointment.staffAppointmentsHour),
+        calificacion: typeof calificacion === 'number' ? calificacion : null,
+        service: serviceObj,
+        idappointment: appointment.idappointment,
+        state: appointment.state,
+      }
+    });
   } catch (error) {
     const msg = error?.message || "Error creando cita";
-    const code = /not found|no pertenece|fecha inválida|serviceDuration/i.test(msg) ? 400 : 500;
+    const code = /not found|no pertenece|fecha inválida|serviceDuration|Service/i.test(msg) ? 400 : 500;
     return res.status(code).json({ error: msg });
   }
 };

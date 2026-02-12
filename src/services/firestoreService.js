@@ -633,15 +633,14 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
 
 export const APPOINTMENT_STATES = ["pendiente", "confirmado", "cancelado"];
 
-export const createAppointment = async ({ businessId, staffId, serviceType, serviceDuration, date, horario, calificacion }) => {
+export const createAppointment = async ({ businessId, staffId, serviceId, serviceType, serviceDuration, date, horario, calificacion }) => {
   try {
-    if (!businessId || !staffId || !serviceType || !date || !horario) {
-      throw new Error("Campos requeridos: businessId, staffId, serviceType, date, horario");
+    if (!businessId || !staffId || !date || !horario) {
+      throw new Error("Campos requeridos: businessId, staffId, date, horario");
     }
 
-    if (serviceDuration !== undefined && (typeof serviceDuration !== 'number' || serviceDuration <= 0)) {
-      throw new Error("serviceDuration debe ser un número positivo (minutos)");
-    }
+    let finalDuration = typeof serviceDuration === 'number' ? serviceDuration : undefined;
+    let finalType = typeof serviceType === 'string' ? String(serviceType) : undefined;
 
     // Validate business exists
     const businessQuery = await db.collection("user-business").where("id", "==", Number(businessId)).get();
@@ -673,6 +672,36 @@ export const createAppointment = async ({ businessId, staffId, serviceType, serv
       throw new Error("Fecha inválida en el calendario");
     }
 
+    if (serviceId !== undefined && serviceId !== null) {
+      const svcRef = db.collection("services").doc(String(serviceId));
+      const svcDoc = await svcRef.get();
+      if (!svcDoc.exists) {
+        throw new Error("Service not found");
+      }
+      const svcData = svcDoc.data();
+      if (Number(svcData.businessId) !== Number(businessId)) {
+        throw new Error("Service no pertenece al negocio");
+      }
+      finalType = String(svcData.type ?? finalType ?? "");
+      if (finalDuration === undefined && typeof svcData.duration === 'number' && svcData.duration > 0) {
+        finalDuration = svcData.duration;
+      }
+    } else if (finalDuration === undefined && finalType) {
+      const svcSnap = await db.collection("services")
+        .where("businessId", "==", Number(businessId))
+        .where("type", "==", String(finalType))
+        .get();
+      if (!svcSnap.empty) {
+        const svc = svcSnap.docs[0].data();
+        if (typeof svc.duration === 'number' && svc.duration > 0) {
+          finalDuration = svc.duration;
+        }
+      }
+    }
+    if (finalDuration !== undefined && (typeof finalDuration !== 'number' || finalDuration <= 0)) {
+      throw new Error("serviceDuration debe ser un número positivo (minutos)");
+    }
+
     // Generate appointment id
     const newId = await getNextId('appointmentId');
     const appointmentRef = db.collection("appointments").doc(String(newId));
@@ -684,8 +713,9 @@ export const createAppointment = async ({ businessId, staffId, serviceType, serv
       staffdates: String(date),
       staffAppoinments: String(staffId),
       staffAppointmentsHour: String(horario),
-      serviceType: String(serviceType),
-      serviceDuration: typeof serviceDuration === 'number' ? serviceDuration : null,
+      serviceId: serviceId !== undefined && serviceId !== null ? Number(serviceId) : null,
+      serviceType: finalType ? String(finalType) : "",
+      serviceDuration: typeof finalDuration === 'number' ? finalDuration : null,
       state: "pendiente",
     };
 
@@ -695,8 +725,9 @@ export const createAppointment = async ({ businessId, staffId, serviceType, serv
     const summary = {
       id: newId,
       staffId: String(staffId),
-      serviceType: String(serviceType),
-      serviceDuration: typeof serviceDuration === 'number' ? serviceDuration : null,
+      serviceId: appointment.serviceId,
+      serviceType: appointment.serviceType,
+      serviceDuration: typeof finalDuration === 'number' ? finalDuration : null,
       date: String(date),
       horario: String(horario),
       calificacion: typeof calificacion === 'number' ? calificacion : null,
@@ -750,16 +781,30 @@ export const getAppointmentsByBusiness = async (businessId) => {
   try {
     const querySnap = await db.collection("appointments").where("businessId", "==", Number(businessId)).get();
     const staffSnap = await db.collection("staff").where("businessId", "==", Number(businessId)).get();
+    const svcSnap = await db.collection("services").where("businessId", "==", Number(businessId)).get();
     const staffMap = new Map();
     staffSnap.docs.forEach(doc => {
       const data = doc.data();
       staffMap.set(String(doc.id), { nombre: data.nombre || '', apellido: data.apellido || '' });
+    });
+    const svcMap = new Map();
+    svcSnap.docs.forEach(doc => {
+      const data = doc.data();
+      svcMap.set(Number(data.id ?? Number(doc.id)), {
+        id: Number(data.id ?? Number(doc.id)),
+        name: data.name ?? "",
+        type: data.type ?? "",
+        duration: data.duration ?? null,
+        price: data.price ?? null,
+      });
     });
 
     const results = querySnap.docs.map(d => {
       const data = d.data();
       const staffId = String(data.staffAppoinments ?? data.staffId ?? "");
       const staffInfo = staffMap.get(staffId) || { nombre: '', apellido: '' };
+      const serviceId = data.serviceId ?? null;
+      const svcInfo = serviceId != null ? (svcMap.get(Number(serviceId)) || null) : null;
       // Asegurar salida con los nombres solicitados
       return {
         businessId: Number(data.businessId ?? businessId),
@@ -772,6 +817,7 @@ export const getAppointmentsByBusiness = async (businessId) => {
         state: data.state ?? "pendiente",
         staffNombre: staffInfo.nombre,
         staffApellido: staffInfo.apellido,
+        service: svcInfo,
       };
     });
     return results;
@@ -913,5 +959,127 @@ export const getAllUsers = async () => {
   } catch (error) {
     console.error("Firestore error obteniendo usuarios:", error);
     throw new Error(`Error obteniendo usuarios: ${error.message}`);
+  }
+};
+
+export const createService = async (businessId, name, type, duration, price) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    if (bq.empty) {
+      throw new Error("Business not found");
+    }
+    if (!name || !type) {
+      throw new Error("Campos requeridos: name, type");
+    }
+    const durNum = Number(duration);
+    const priceNum = Number(price);
+    if (!Number.isFinite(durNum) || durNum <= 0) {
+      throw new Error("duration debe ser un número positivo");
+    }
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      throw new Error("price debe ser un número no negativo");
+    }
+    const newId = await getNextId("serviceId");
+    const ref = db.collection("services").doc(String(newId));
+    const doc = {
+      id: newId,
+      businessId: bizIdNum,
+      name: String(name),
+      type: String(type),
+      duration: durNum,
+      price: priceNum,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await ref.set(doc);
+    return doc;
+  } catch (error) {
+    console.error("Firestore error creando servicio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateService = async (businessId, serviceId, updateData) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const sid = String(serviceId);
+    const ref = db.collection("services").doc(sid);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new Error("Service not found");
+    }
+    const data = doc.data();
+    if (Number(data.businessId) !== bizIdNum) {
+      throw new Error("Service no pertenece al negocio");
+    }
+    const patch = {};
+    if (updateData.name !== undefined) patch.name = String(updateData.name);
+    if (updateData.type !== undefined) patch.type = String(updateData.type);
+    if (updateData.duration !== undefined) {
+      const durNum = Number(updateData.duration);
+      if (!Number.isFinite(durNum) || durNum <= 0) {
+        throw new Error("duration debe ser un número positivo");
+      }
+      patch.duration = durNum;
+    }
+    if (updateData.price !== undefined) {
+      const priceNum = Number(updateData.price);
+      if (!Number.isFinite(priceNum) || priceNum < 0) {
+        throw new Error("price debe ser un número no negativo");
+      }
+      patch.price = priceNum;
+    }
+    patch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await ref.update(patch);
+    const updated = await ref.get();
+    return updated.data();
+  } catch (error) {
+    console.error("Firestore error actualizando servicio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const deleteService = async (businessId, serviceId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const sid = String(serviceId);
+    const ref = db.collection("services").doc(sid);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new Error("Service not found");
+    }
+    const data = doc.data();
+    if (Number(data.businessId) !== bizIdNum) {
+      throw new Error("Service no pertenece al negocio");
+    }
+    await ref.delete();
+    return { id: Number(serviceId), deleted: true };
+  } catch (error) {
+    console.error("Firestore error eliminando servicio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getServicesByBusiness = async (businessId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const snap = await db.collection("services").where("businessId", "==", bizIdNum).get();
+    return snap.docs.map((d) => {
+      const s = d.data();
+      return {
+        id: s.id ?? Number(d.id),
+        businessId: bizIdNum,
+        name: s.name ?? "",
+        type: s.type ?? "",
+        duration: s.duration ?? null,
+        price: s.price ?? null,
+      };
+    });
+  } catch (error) {
+    console.error("Firestore error listando servicios:", error);
+    throw new Error(error.message);
   }
 };

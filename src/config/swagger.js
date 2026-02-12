@@ -204,6 +204,49 @@ const options = {
             message: { type: "string", example: "Logout exitoso" },
           },
         },
+        Service: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            businessId: { type: "number" },
+            name: { type: "string" },
+            type: { type: "string" },
+            duration: { type: "number", description: "Duration in minutes" },
+            price: { type: "number" },
+          },
+        },
+        CreateServiceRequest: {
+          type: "object",
+          required: ["businessId", "name", "type", "duration", "price"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            name: { type: "string", example: "Haircut" },
+            type: { type: "string", example: "corte" },
+            duration: { type: "number", example: 30 },
+            price: { type: "number", example: 20.0 },
+          },
+        },
+        UpdateServiceRequest: {
+          type: "object",
+          required: ["businessId"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            name: { type: "string", example: "Haircut" },
+            type: { type: "string", example: "corte" },
+            duration: { type: "number", example: 45 },
+            price: { type: "number", example: 25.0 },
+          },
+        },
+        ListServicesResponse: {
+          type: "object",
+          properties: {
+            services: {
+              type: "array",
+              items: { $ref: "#/components/schemas/Service" },
+            },
+            total: { type: "number" },
+          },
+        },
         VerifyBusinessRequest: {
           type: "object",
           required: ["id", "code"],
@@ -280,12 +323,12 @@ const options = {
         // ─── Appointments ──────────────────────────────────────
         CreateAppointmentRequest: {
           type: "object",
-          required: ["businessId", "staffId", "serviceType", "date", "horario"],
+          required: ["businessId", "staffId", "date", "horario"],
           properties: {
             businessId: { type: "number", example: 1 },
             staffId: { type: "string", example: "5" },
-            serviceType: { type: "string", example: "Corte de cabello" },
-            serviceDuration: { type: "number", description: "Duración del servicio en minutos", example: 30 },
+            service: { type: "number", example: 1, description: "Service ID seleccionado" },
+            serviceDuration: { type: "number", description: "Si no se envía y service está definido, se toma del servicio", example: 30 },
             date: { type: "string", example: "15/03/2026", description: "Formato dd/MM/YYYY" },
             horario: { type: "string", example: "10:00" },
             calificacion: { type: "number", nullable: true, example: 5 },
@@ -298,13 +341,13 @@ const options = {
               type: "object",
               properties: {
                 businessId: { type: "number" },
+                staffId: { type: "string" },
+                date: { type: "string" },
+                horario: { type: "string" },
+                calificacion: { type: "number", nullable: true },
                 idappointment: { type: "number" },
-                staffdates: { type: "string" },
-                staffAppoinments: { type: "string" },
-                staffAppointmentsHour: { type: "string" },
-                serviceType: { type: "string" },
-                serviceDuration: { type: "number", nullable: true },
                 state: { type: "string", enum: ["pendiente", "confirmado", "cancelado"] },
+                service: { $ref: "#/components/schemas/Service" },
               },
             },
           },
@@ -473,6 +516,70 @@ const options = {
             200: { description: "Tokens renovados", content: { "application/json": { schema: { $ref: "#/components/schemas/RefreshTokenResponse" } } } },
             401: { description: "Refresh expirado o revocado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
             403: { description: "Refresh inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
+          },
+        },
+      },
+      "/services": {
+        post: {
+          tags: ["Servicios"],
+          summary: "Crear servicio",
+          description: "Crea un servicio para un negocio",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/CreateServiceRequest" } } },
+          },
+          responses: {
+            201: { description: "Servicio creado", content: { "application/json": { schema: { type: "object", properties: { service: { $ref: "#/components/schemas/Service" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/services/{serviceId}": {
+        patch: {
+          tags: ["Servicios"],
+          summary: "Actualizar servicio",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "serviceId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateServiceRequest" } } },
+          },
+          responses: {
+            200: { description: "Servicio actualizado", content: { "application/json": { schema: { type: "object", properties: { service: { $ref: "#/components/schemas/Service" } } } } } },
+            400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        delete: {
+          tags: ["Servicios"],
+          summary: "Eliminar servicio",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "serviceId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", properties: { businessId: { type: "number", example: 1 } } } } },
+          },
+          responses: {
+            200: { description: "Servicio eliminado", content: { "application/json": { schema: { type: "object", properties: { id: { type: "number" }, deleted: { type: "boolean" } } } } } },
+            400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/services/{businessId}": {
+        get: {
+          tags: ["Servicios"],
+          summary: "Listar servicios por negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "number" } },
+          ],
+          responses: {
+            200: { description: "Listado de servicios", content: { "application/json": { schema: { $ref: "#/components/schemas/ListServicesResponse" } } } },
+            400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },
       },
@@ -777,6 +884,7 @@ const options = {
         post: {
           tags: ["Citas"],
           summary: "Crear una cita",
+          description: "Crea una cita con businessId, staffId, date y horario. Opcionalmente incluye service (ID) para vincular un servicio.",
           security: [{ bearerAuth: [] }],
           requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateAppointmentRequest" } } } },
           responses: {
