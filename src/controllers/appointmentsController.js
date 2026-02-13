@@ -33,6 +33,7 @@ export const createAppointmentController = async (req, res) => {
           type: s.type ?? "",
           duration: s.duration ?? null,
           price: s.price ?? null,
+          category: s.category ?? "service",
         };
       }
     }

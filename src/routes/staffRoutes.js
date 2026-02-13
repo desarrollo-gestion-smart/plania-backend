@@ -24,6 +24,9 @@ router.get("/get-staff-ids/:businessId", authenticateToken, getStaffIds);
 // POST /api/upload-staff-avatar
 router.post("/upload-staff-avatar", authenticateToken, authorizeRoles("business", "staff"), upload.single("image"), uploadStaffAvatar);
 
+// PATCH /api/upload-staff-avatar
+router.patch("/upload-staff-avatar", authenticateToken, authorizeRoles("business", "staff"), upload.single("image"), uploadStaffAvatar);
+
 // PUT /api/update-staff
 router.put("/update-staff", authenticateToken, authorizeRoles("business", "staff"), updateStaffMember);
 

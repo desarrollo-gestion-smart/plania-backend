@@ -2,11 +2,11 @@ import { createService, updateService, deleteService, getServicesByBusiness } fr
 
 export const createServiceController = async (req, res) => {
   try {
-    const { businessId, name, type, duration, price } = req.body || {};
-    if (!businessId || !name || !type || duration === undefined || price === undefined) {
-      return res.status(400).json({ error: "Campos requeridos: businessId, name, type, duration, price" });
+    const { businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite } = req.body || {};
+    if (!businessId || !name || !type || duration === undefined || price === undefined || !category) {
+      return res.status(400).json({ error: "Campos requeridos: businessId, name, type, duration, price, category" });
     }
-    const service = await createService(businessId, name, type, duration, price);
+    const service = await createService(businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite);
     return res.status(201).json({ service });
   } catch (error) {
     const msg = error?.message || "Error creando servicio";
@@ -18,11 +18,11 @@ export const createServiceController = async (req, res) => {
 export const updateServiceController = async (req, res) => {
   try {
     const { serviceId } = req.params;
-    const { businessId, name, type, duration, price } = req.body || {};
+    const { businessId, name, type, duration, price, category, description, archived, promotionTerms, promotionValidUntil, promotionValidIndefinite } = req.body || {};
     if (!serviceId || !businessId) {
       return res.status(400).json({ error: "serviceId y businessId son requeridos" });
     }
-    const service = await updateService(businessId, serviceId, { name, type, duration, price });
+    const service = await updateService(businessId, serviceId, { name, type, duration, price, category, description, archived, promotionTerms, promotionValidUntil, promotionValidIndefinite });
     return res.status(200).json({ service });
   } catch (error) {
     const msg = error?.message || "Error actualizando servicio";

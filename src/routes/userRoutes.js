@@ -131,6 +131,19 @@ router.post(
   configureBusiness
 );
 
+router.patch(
+  "/configure-business",
+  authenticateToken,
+  authorizeRoles("business"),
+  upload.fields([
+    { name: "avatar", maxCount: 1 },
+    { name: "image", maxCount: 1 },
+    { name: "banner", maxCount: 1 },
+    { name: "staffAvatars" }
+  ]),
+  configureBusiness
+);
+
 // GET /api/get-business/:businessId
 router.get("/get-business/:businessId", authenticateToken, getBusinessInfo);
 

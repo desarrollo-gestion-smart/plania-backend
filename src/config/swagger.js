@@ -213,6 +213,12 @@ const options = {
             type: { type: "string" },
             duration: { type: "number", description: "Duration in minutes" },
             price: { type: "number" },
+            category: { type: "string", enum: ["service", "promotion"] },
+            description: { type: "string" },
+            archived: { type: "boolean", example: false },
+            promotionTerms: { type: "string", description: "Solo para category=promotion" },
+            promotionValidUntil: { type: "string", nullable: true, description: "dd/MM/YYYY (solo para category=promotion)" },
+            promotionValidIndefinite: { type: "boolean", description: "Solo para category=promotion" },
           },
         },
         DaySchedule: {
@@ -356,13 +362,18 @@ const options = {
         },
         CreateServiceRequest: {
           type: "object",
-          required: ["businessId", "name", "type", "duration", "price"],
+          required: ["businessId", "name", "type", "duration", "price", "category"],
           properties: {
             businessId: { type: "number", example: 1 },
             name: { type: "string", example: "Haircut" },
             type: { type: "string", example: "corte" },
             duration: { type: "number", example: 30 },
             price: { type: "number", example: 20.0 },
+            category: { type: "string", enum: ["service", "promotion"], example: "service" },
+            description: { type: "string", example: "Servicio completo de corte y lavado" },
+            promotionTerms: { type: "string", example: "Aplica de lunes a jueves", description: "Requerido si category=promotion" },
+            promotionValidUntil: { type: "string", example: "31/12/2026", description: "Opcional si category=promotion (dd/MM/YYYY)" },
+            promotionValidIndefinite: { type: "boolean", example: true, description: "Opcional si category=promotion. Si es true, no enviar promotionValidUntil" },
           },
         },
         UpdateServiceRequest: {
@@ -374,6 +385,12 @@ const options = {
             type: { type: "string", example: "corte" },
             duration: { type: "number", example: 45 },
             price: { type: "number", example: 25.0 },
+            category: { type: "string", enum: ["service", "promotion"], example: "promotion" },
+            description: { type: "string", example: "Incluye coloración y peinado" },
+            archived: { type: "boolean", example: true },
+            promotionTerms: { type: "string", example: "Válida hasta fin de mes", description: "Solo si category=promotion" },
+            promotionValidUntil: { type: "string", example: "30/03/2026", description: "Solo si category=promotion (dd/MM/YYYY)" },
+            promotionValidIndefinite: { type: "boolean", example: false, description: "Solo si category=promotion" },
           },
         },
         ListServicesResponse: {
@@ -671,7 +688,7 @@ const options = {
         post: {
           tags: ["Servicios"],
           summary: "Crear servicio",
-          description: "Crea un servicio para un negocio",
+          description: "Crea un servicio para un negocio. El campo archived se inicializa en false por defecto.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -860,6 +877,42 @@ const options = {
             404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },
+        patch: {
+          tags: ["Negocios"],
+          summary: "Modificar configuración del negocio",
+          description: "Actualiza nombre, descripción, avatar, banner y staff del negocio. Acepta multipart/form-data.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["id"],
+                  properties: {
+                    id: { type: "number", description: "Business ID" },
+                    name: { type: "string" },
+                    description: { type: "string" },
+                    avatar: { type: "string", format: "binary" },
+                    banner: { type: "string", format: "binary" },
+                    avatarBase64: { type: "string" },
+                    bannerBase64: { type: "string" },
+                    avatarUrl: { type: "string" },
+                    bannerUrl: { type: "string" },
+                    staff: { type: "string", description: "JSON array de staff" },
+                    staffAvatars: { type: "array", items: { type: "string", format: "binary" } },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Negocio modificado exitosamente" },
+            401: { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
+            403: { description: "Sin permisos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
       },
       "/get-business/{businessId}": {
         get: {
@@ -1039,6 +1092,33 @@ const options = {
           },
           responses: {
             200: { description: "Avatar subido" },
+            400: { description: "Archivo o staffId faltante" },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+          },
+        },
+        patch: {
+          tags: ["Staff"],
+          summary: "Actualizar avatar de staff",
+          description: "Roles permitidos: business, staff.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["image", "staffId"],
+                  properties: {
+                    image: { type: "string", format: "binary" },
+                    staffId: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Avatar actualizado" },
             400: { description: "Archivo o staffId faltante" },
             401: { description: "No autenticado" },
             403: { description: "Sin permisos" },

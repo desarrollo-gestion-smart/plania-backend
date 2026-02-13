@@ -843,6 +843,7 @@ export const getAppointmentsByBusiness = async (businessId) => {
         type: data.type ?? "",
         duration: data.duration ?? null,
         price: data.price ?? null,
+        category: data.category ?? "service",
       });
     });
 
@@ -1232,7 +1233,7 @@ export const getAllUsers = async () => {
   }
 };
 
-export const createService = async (businessId, name, type, duration, price) => {
+export const createService = async (businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
@@ -1253,6 +1254,40 @@ export const createService = async (businessId, name, type, duration, price) => 
     if (!Number.isFinite(priceNum) || priceNum < 0) {
       throw new Error("price debe ser un número no negativo");
     }
+    const catStr = String(category ?? "").toLowerCase();
+    if (!["service", "promotion"].includes(catStr)) {
+      throw new Error("category inválido. Valores permitidos: service, promotion");
+    }
+    let promoTerms = "";
+    let promoValidUntilStr = null;
+    let promoValidIndef = false;
+    if (catStr === "promotion") {
+      promoTerms = String(promotionTerms ?? "").trim();
+      const indef = promotionValidIndefinite === true;
+      const untilStr = promotionValidUntil !== undefined && promotionValidUntil !== null ? String(promotionValidUntil) : "";
+      if (!promoTerms) {
+        throw new Error("terms requerido para promociones");
+      }
+      if (indef) {
+        promoValidIndef = true;
+        promoValidUntilStr = null;
+      } else if (untilStr) {
+        const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(untilStr);
+        if (!m) {
+          throw new Error("promotionValidUntil inválido. Formato requerido dd/MM/YYYY");
+        }
+        const d = Number(m[1]);
+        const mo = Number(m[2]);
+        const y = Number(m[3]);
+        const jsDate = new Date(y, mo - 1, d);
+        if (jsDate.getFullYear() !== y || jsDate.getMonth() !== (mo - 1) || jsDate.getDate() !== d) {
+          throw new Error("promotionValidUntil inválido en el calendario");
+        }
+        promoValidUntilStr = untilStr;
+      } else {
+        throw new Error("validity requerido para promociones: enviar promotionValidUntil (dd/MM/YYYY) o promotionValidIndefinite=true");
+      }
+    }
     const newId = await getNextId("serviceId");
     const ref = db.collection("services").doc(String(newId));
     const doc = {
@@ -1262,6 +1297,12 @@ export const createService = async (businessId, name, type, duration, price) => 
       type: String(type),
       duration: durNum,
       price: priceNum,
+      category: catStr,
+      description: description !== undefined ? String(description) : "",
+      promotionTerms: promoTerms,
+      promotionValidUntil: promoValidUntilStr,
+      promotionValidIndefinite: promoValidIndef,
+      archived: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
     await ref.set(doc);
@@ -1301,6 +1342,72 @@ export const updateService = async (businessId, serviceId, updateData) => {
         throw new Error("price debe ser un número no negativo");
       }
       patch.price = priceNum;
+    }
+    let effectiveCategory = data.category;
+    if (updateData.category !== undefined) {
+      const catStr = String(updateData.category ?? "").toLowerCase();
+      if (!["service", "promotion"].includes(catStr)) {
+        throw new Error("category inválido. Valores permitidos: service, promotion");
+      }
+      patch.category = catStr;
+      effectiveCategory = catStr;
+      if (catStr === "service") {
+        patch.promotionTerms = "";
+        patch.promotionValidUntil = null;
+        patch.promotionValidIndefinite = false;
+      }
+    }
+    if (updateData.description !== undefined) {
+      patch.description = String(updateData.description ?? "");
+    }
+    if (updateData.archived !== undefined) {
+      if (typeof updateData.archived !== "boolean") {
+        throw new Error("archived debe ser boolean");
+      }
+      patch.archived = updateData.archived;
+    }
+    const hasPromoFields = updateData.promotionTerms !== undefined || updateData.promotionValidUntil !== undefined || updateData.promotionValidIndefinite !== undefined;
+    if (hasPromoFields) {
+      if (String(effectiveCategory).toLowerCase() !== "promotion") {
+        throw new Error("Campos de promoción solo válidos cuando category=promotion");
+      }
+      if (updateData.promotionTerms !== undefined) {
+        const t = String(updateData.promotionTerms ?? "").trim();
+        if (!t) {
+          throw new Error("promotionTerms requerido para promociones");
+        }
+        patch.promotionTerms = t;
+      }
+      if (updateData.promotionValidIndefinite !== undefined) {
+        const indef = Boolean(updateData.promotionValidIndefinite);
+        patch.promotionValidIndefinite = indef;
+        if (indef) {
+          patch.promotionValidUntil = null;
+        }
+      }
+      if (updateData.promotionValidUntil !== undefined) {
+        const untilVal = updateData.promotionValidUntil;
+        if (untilVal === null) {
+          patch.promotionValidUntil = null;
+        } else {
+          const untilStr = String(untilVal);
+          const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(untilStr);
+          if (!m) {
+            throw new Error("promotionValidUntil inválido. Formato requerido dd/MM/YYYY");
+          }
+          const d = Number(m[1]);
+          const mo = Number(m[2]);
+          const y = Number(m[3]);
+          const jsDate = new Date(y, mo - 1, d);
+          if (jsDate.getFullYear() !== y || jsDate.getMonth() !== (mo - 1) || jsDate.getDate() !== d) {
+            throw new Error("promotionValidUntil inválido en el calendario");
+          }
+          patch.promotionValidUntil = untilStr;
+          if (patch.promotionValidIndefinite === true) {
+            patch.promotionValidIndefinite = false;
+          }
+        }
+      }
     }
     patch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
     await ref.update(patch);
@@ -1346,6 +1453,12 @@ export const getServicesByBusiness = async (businessId) => {
         type: s.type ?? "",
         duration: s.duration ?? null,
         price: s.price ?? null,
+        category: s.category ?? "service",
+        description: s.description ?? "",
+        archived: s.archived ?? false,
+        promotionTerms: s.promotionTerms ?? "",
+        promotionValidUntil: s.promotionValidUntil ?? null,
+        promotionValidIndefinite: s.promotionValidIndefinite ?? false,
       };
     });
   } catch (error) {
