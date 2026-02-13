@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { addStaffMember, getStaff, getStaffIds, loginStaffMember, uploadStaffAvatar, updateStaffMember, getStaffName } from "../controllers/staffController.js";
+import { addStaffMember, getStaff, getStaffIds, loginStaffMember, uploadStaffAvatar, updateStaffMember, getStaffName, setStaffServicesController } from "../controllers/staffController.js";
 import { createStaffScheduleController, updateStaffScheduleController, deleteStaffScheduleController, listStaffSchedulesController } from "../controllers/staffSchedulesController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 
@@ -38,5 +38,6 @@ router.post("/staff/:staffId/schedules", authenticateToken, authorizeRoles("busi
 router.patch("/staff/:staffId/schedules/:scheduleId", authenticateToken, authorizeRoles("business", "staff"), updateStaffScheduleController);
 router.delete("/staff/:staffId/schedules/:scheduleId", authenticateToken, authorizeRoles("business", "staff"), deleteStaffScheduleController);
 router.get("/staff/:staffId/schedules", authenticateToken, listStaffSchedulesController);
+router.put("/staff/:staffId/services", authenticateToken, authorizeRoles("business"), setStaffServicesController);
 
 export default router;

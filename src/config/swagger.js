@@ -403,6 +403,32 @@ const options = {
             total: { type: "number" },
           },
         },
+        ServiceType: {
+          type: "object",
+          properties: {
+            type: { type: "string", example: "corte" },
+            services: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "number", example: 1 },
+                  name: { type: "string", example: "Haircut" },
+                },
+              },
+            },
+          },
+        },
+        ListServiceTypesResponse: {
+          type: "object",
+          properties: {
+            types: {
+              type: "array",
+              items: { $ref: "#/components/schemas/ServiceType" },
+            },
+            total: { type: "number" },
+          },
+        },
         VerifyBusinessRequest: {
           type: "object",
           required: ["id", "code"],
@@ -473,6 +499,31 @@ const options = {
             apellido: { type: "string" },
             numero: { type: "string" },
             password: { type: "string" },
+          },
+        },
+        SetStaffServicesRequest: {
+          type: "object",
+          required: ["businessId", "serviceIds"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            serviceIds: { type: "array", items: { type: "number" }, example: [1, 2, 3] },
+          },
+        },
+        SetStaffServicesResponse: {
+          type: "object",
+          properties: {
+            staffId: { type: "string" },
+            businessId: { type: "number" },
+            services: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "number" },
+                  name: { type: "string" },
+                },
+              },
+            },
           },
         },
 
@@ -745,6 +796,20 @@ const options = {
           ],
           responses: {
             200: { description: "Listado de servicios", content: { "application/json": { schema: { $ref: "#/components/schemas/ListServicesResponse" } } } },
+            400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/service-types/{businessId}": {
+        get: {
+          tags: ["Servicios"],
+          summary: "Listar tipos de servicio por negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "number" } },
+          ],
+          responses: {
+            200: { description: "Listado de tipos de servicio", content: { "application/json": { schema: { $ref: "#/components/schemas/ListServiceTypesResponse" } } } },
             400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },
@@ -1152,6 +1217,23 @@ const options = {
             200: { description: "Nombre del staff", content: { "application/json": { schema: { type: "object", properties: { id: { type: "string" }, nombre: { type: "string" } } } } } },
             401: { description: "No autenticado" },
             404: { description: "Staff no encontrado" },
+          },
+        },
+      },
+      "/staff/{staffId}/services": {
+        put: {
+          tags: ["Staff"],
+          summary: "Asignar servicios a un staff",
+          description: "Reemplaza la lista de servicios que un staff puede atender. Solo rol business.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "staffId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/SetStaffServicesRequest" } } } },
+          responses: {
+            200: { description: "Servicios asignados", content: { "application/json": { schema: { $ref: "#/components/schemas/SetStaffServicesResponse" } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Staff o servicios no encontrados", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },
       },

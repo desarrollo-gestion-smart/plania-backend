@@ -1,4 +1,4 @@
-import { addStaff, getStaffByBusiness, loginStaff, updateStaffAvatar, updateStaffFields, getStaffNameById } from "../services/firestoreService.js";
+import { addStaff, getStaffByBusiness, loginStaff, updateStaffAvatar, updateStaffFields, getStaffNameById, setStaffServices } from "../services/firestoreService.js";
 import { uploadImageToFirebase } from "../services/firebaseService.js";
 import { generateToken } from "../utils/jwt.js";
 
@@ -142,5 +142,24 @@ export const uploadStaffAvatar = async (req, res) => {
   } catch (error) {
     console.error("Error subiendo avatar de personal:", error);
     res.status(500).json({ error: "Error subiendo avatar" });
+  }
+};
+
+export const setStaffServicesController = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const { businessId, serviceIds } = req.body || {};
+    if (!staffId || !businessId || serviceIds === undefined) {
+      return res.status(400).json({ error: "staffId, businessId y serviceIds son requeridos" });
+    }
+    if (!Array.isArray(serviceIds) && !Number.isFinite(Number(serviceIds))) {
+      return res.status(400).json({ error: "serviceIds debe ser un número o un arreglo de números" });
+    }
+    const result = await setStaffServices(businessId, staffId, serviceIds);
+    return res.status(200).json(result);
+  } catch (error) {
+    const msg = String(error?.message || "Error asignando servicios a staff");
+    const code = /requerido|inválido|not found|pertenece/i.test(msg) ? 400 : 500;
+    return res.status(code).json({ error: msg });
   }
 };

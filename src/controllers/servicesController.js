@@ -1,4 +1,4 @@
-import { createService, updateService, deleteService, getServicesByBusiness } from "../services/firestoreService.js";
+import { createService, updateService, deleteService, getServicesByBusiness, getServiceTypesByBusiness } from "../services/firestoreService.js";
 
 export const createServiceController = async (req, res) => {
   try {
@@ -62,6 +62,20 @@ export const listServicesController = async (req, res) => {
     return res.status(200).json({ services, total: services.length });
   } catch (error) {
     const msg = error?.message || "Error listando servicios";
+    return res.status(500).json({ error: msg });
+  }
+};
+
+export const listServiceTypesController = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    if (!businessId) {
+      return res.status(400).json({ error: "businessId es requerido" });
+    }
+    const types = await getServiceTypesByBusiness(businessId);
+    return res.status(200).json({ types, total: types.length });
+  } catch (error) {
+    const msg = error?.message || "Error listando tipos de servicio";
     return res.status(500).json({ error: msg });
   }
 };

@@ -197,6 +197,7 @@ export const addStaff = async (businessId, nombre, numero, password, avatar = nu
       numero,
       password: hashedPassword,
       avatar: avatar || null,
+      staffServices: [],
       staffdates: [],
       staffAppoinments: [],
       staffAppointmentsHour: [],
@@ -226,6 +227,7 @@ export const getStaffByBusiness = async (businessId) => {
         numero: data.numero ?? '',
         password: data.password ?? null,
         updatedAt: data.updatedAt ?? null,
+        staffServices: Array.isArray(data.staffServices) ? data.staffServices : [],
         staffdates: Array.isArray(data.staffdates) ? data.staffdates : [],
         staffAppoinments: Array.isArray(data.staffAppoinments) ? data.staffAppoinments : [],
         staffAppointmentsHour: Array.isArray(data.staffAppointmentsHour) ? data.staffAppointmentsHour : [],
@@ -1468,6 +1470,70 @@ export const getServicesByBusiness = async (businessId, category) => {
     });
   } catch (error) {
     console.error("Firestore error listando servicios:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getServiceTypesByBusiness = async (businessId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const snap = await db.collection("services").where("businessId", "==", bizIdNum).get();
+    const map = new Map();
+    snap.docs.forEach((d) => {
+      const s = d.data();
+      const t = String(s.type ?? "").trim();
+      if (!t) return;
+      const list = map.get(t) || [];
+      list.push({ id: s.id ?? Number(d.id), name: s.name ?? "" });
+      map.set(t, list);
+    });
+    const result = Array.from(map.entries()).map(([type, services]) => ({ type, services }));
+    return result;
+  } catch (error) {
+    console.error("Firestore error listando tipos de servicio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const setStaffServices = async (businessId, staffId, serviceIds) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const stid = String(staffId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+    if (!stid) {
+      throw new Error("staffId requerido");
+    }
+    const staffRef = db.collection("staff").doc(stid);
+    const staffDoc = await staffRef.get();
+    if (!staffDoc.exists) {
+      throw new Error("Staff not found");
+    }
+    const staffData = staffDoc.data();
+    if (Number(staffData.businessId) !== bizIdNum) {
+      throw new Error("Staff no pertenece al negocio");
+    }
+    const ids = Array.isArray(serviceIds) ? serviceIds : [serviceIds];
+    const cleanIds = ids
+      .map((x) => Number(x))
+      .filter((n) => Number.isFinite(n));
+    const unique = Array.from(new Set(cleanIds));
+    const services = [];
+    for (const sid of unique) {
+      const sDoc = await db.collection("services").doc(String(sid)).get();
+      if (!sDoc.exists) continue;
+      const sData = sDoc.data();
+      if (Number(sData.businessId) !== bizIdNum) continue;
+      services.push({ id: sData.id ?? Number(sDoc.id), name: sData.name ?? "" });
+    }
+    await staffRef.update({
+      staffServices: services.map((s) => Number(s.id)),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { staffId: stid, businessId: bizIdNum, services };
+  } catch (error) {
+    console.error("Firestore error asignando servicios a staff:", error);
     throw new Error(error.message);
   }
 };
