@@ -1440,10 +1440,15 @@ export const deleteService = async (businessId, serviceId) => {
   }
 };
 
-export const getServicesByBusiness = async (businessId) => {
+export const getServicesByBusiness = async (businessId, category) => {
   try {
     const bizIdNum = Number(businessId);
-    const snap = await db.collection("services").where("businessId", "==", bizIdNum).get();
+    let query = db.collection("services").where("businessId", "==", bizIdNum);
+    if (category !== undefined && category !== null) {
+      const catStr = String(category).toLowerCase();
+      query = query.where("category", "==", catStr);
+    }
+    const snap = await query.get();
     return snap.docs.map((d) => {
       const s = d.data();
       return {
