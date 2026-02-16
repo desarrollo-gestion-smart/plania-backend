@@ -813,6 +813,7 @@ const options = {
           parameters: [
             { name: "businessId", in: "path", required: true, schema: { type: "number" } },
             { name: "category", in: "query", required: false, schema: { type: "string", enum: ["service", "promotion"] }, description: "Filtrar por categoría" },
+            { name: "staffId", in: "query", required: false, schema: { type: "string" }, description: "Filtrar servicios asignados a un staff" },
           ],
           responses: {
             200: { description: "Listado de servicios", content: { "application/json": { schema: { $ref: "#/components/schemas/ListServicesResponse" } } } },

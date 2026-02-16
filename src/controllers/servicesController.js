@@ -50,7 +50,7 @@ export const deleteServiceController = async (req, res) => {
 export const listServicesController = async (req, res) => {
   try {
     const { businessId } = req.params;
-    const { category } = req.query || {};
+    const { category, staffId } = req.query || {};
     if (!businessId) {
       return res.status(400).json({ error: "businessId es requerido" });
     }
@@ -58,7 +58,7 @@ export const listServicesController = async (req, res) => {
     if (catStr && !["service", "promotion"].includes(catStr)) {
       return res.status(400).json({ error: "category inválido. Valores permitidos: service, promotion" });
     }
-    const services = await getServicesByBusiness(businessId, catStr);
+    const services = await getServicesByBusiness(businessId, catStr, staffId !== undefined ? String(staffId) : undefined);
     return res.status(200).json({ services, total: services.length });
   } catch (error) {
     const msg = error?.message || "Error listando servicios";

@@ -1556,7 +1556,7 @@ export const deleteService = async (businessId, serviceId) => {
   }
 };
 
-export const getServicesByBusiness = async (businessId, category) => {
+export const getServicesByBusiness = async (businessId, category, staffId) => {
   try {
     const bizIdNum = Number(businessId);
     let query = db.collection("services").where("businessId", "==", bizIdNum);
@@ -1574,13 +1574,17 @@ export const getServicesByBusiness = async (businessId, category) => {
         id: sd.id,
         staffServices: Array.isArray(d.staffServices) ? d.staffServices.map((x) => Number(x)) : [],
         cfg: d.staffServiceConfigs || {},
+        nombre: d.nombre || "",
+        apellido: d.apellido || "",
       };
     });
+    const filterStaffId = staffId !== undefined && staffId !== null ? String(staffId) : undefined;
     return snap.docs.map((d) => {
       const s = d.data();
       const serviceIdNum = Number(s.id ?? Number(d.id));
-      const staffList = staffRecords
-        .filter((st) => st.staffServices.includes(serviceIdNum))
+      const staffSource = staffRecords.filter((st) => st.staffServices.includes(serviceIdNum));
+      const staffFiltered = filterStaffId ? staffSource.filter((st) => String(st.id) === filterStaffId) : staffSource;
+      const staffList = staffFiltered
         .map((st) => {
           const key = String(serviceIdNum);
           const c = st.cfg && st.cfg[key] ? st.cfg[key] : {};
@@ -1590,8 +1594,13 @@ export const getServicesByBusiness = async (businessId, category) => {
             staffDuration: c.staffDuration ?? null,
             staffcommission: c.staffcommission ?? null,
             staffprice: c.staffprice ?? null,
+            nombre: st.nombre,
+            apellido: st.apellido,
           };
         });
+      if (filterStaffId && staffList.length === 0) {
+        return null;
+      }
       return {
         id: s.id ?? Number(d.id),
         businessId: bizIdNum,
@@ -1609,7 +1618,7 @@ export const getServicesByBusiness = async (businessId, category) => {
         promotionValidUntil: s.promotionValidUntil ?? null,
         promotionValidIndefinite: s.promotionValidIndefinite ?? false,
       };
-    });
+    }).filter(Boolean);
   } catch (error) {
     console.error("Firestore error listando servicios:", error);
     throw new Error(error.message);
