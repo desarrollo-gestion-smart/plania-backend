@@ -212,7 +212,21 @@ const options = {
             name: { type: "string" },
             type: { type: "string" },
             duration: { type: "number", description: "Duration in minutes" },
+            staffcommission: { type: "number", nullable: true, description: "Comisión del staff" },
             price: { type: "number" },
+            staff: {
+              type: "array",
+              description: "Listado de staff asignado al servicio",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "number", example: 1 },
+                  staffDuration: { type: "number", nullable: true },
+                  staffcommission: { type: "number", nullable: true },
+                  staffprice: { type: "number", nullable: true },
+                },
+              },
+            },
             category: { type: "string", enum: ["service", "promotion"] },
             description: { type: "string" },
             archived: { type: "boolean", example: false },
@@ -391,6 +405,10 @@ const options = {
             promotionTerms: { type: "string", example: "Válida hasta fin de mes", description: "Solo si category=promotion" },
             promotionValidUntil: { type: "string", example: "30/03/2026", description: "Solo si category=promotion (dd/MM/YYYY)" },
             promotionValidIndefinite: { type: "boolean", example: false, description: "Solo si category=promotion" },
+            staffDuration: { type: "string", nullable: true, example: "45", description: "Enviar 'null' para limpiar" },
+            staffcommission: { type: "string", nullable: true, example: "10", description: "Enviar 'null' para limpiar" },
+            staffprice: { type: "string", nullable: true, example: "35", description: "Enviar 'null' para limpiar" },
+            staffId: { type: "string", nullable: true, example: "5", description: "Opcional: aplicar overrides para un staff específico y asignarlo al servicio" },
           },
         },
         ListServicesResponse: {
@@ -414,6 +432,8 @@ const options = {
                 properties: {
                   id: { type: "number", example: 1 },
                   name: { type: "string", example: "Haircut" },
+                  duration: { type: "number", nullable: true, description: "Duration in minutes" },
+                  staffDuration: { type: "string", nullable: true, description: "Duración por staff como string o null" },
                 },
               },
             },

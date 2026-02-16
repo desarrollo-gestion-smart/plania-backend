@@ -18,11 +18,11 @@ export const createServiceController = async (req, res) => {
 export const updateServiceController = async (req, res) => {
   try {
     const { serviceId } = req.params;
-    const { businessId, name, type, duration, price, category, description, archived, promotionTerms, promotionValidUntil, promotionValidIndefinite } = req.body || {};
+    const { businessId, name, type, duration, price, category, description, archived, promotionTerms, promotionValidUntil, promotionValidIndefinite, staffDuration, staffcommission, staffprice, staffId } = req.body || {};
     if (!serviceId || !businessId) {
       return res.status(400).json({ error: "serviceId y businessId son requeridos" });
     }
-    const service = await updateService(businessId, serviceId, { name, type, duration, price, category, description, archived, promotionTerms, promotionValidUntil, promotionValidIndefinite });
+    const service = await updateService(businessId, serviceId, { name, type, duration, price, category, description, archived, promotionTerms, promotionValidUntil, promotionValidIndefinite, staffDuration, staffcommission, staffprice, staffId });
     return res.status(200).json({ service });
   } catch (error) {
     const msg = error?.message || "Error actualizando servicio";

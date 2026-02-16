@@ -1345,6 +1345,42 @@ export const updateService = async (businessId, serviceId, updateData) => {
       }
       patch.price = priceNum;
     }
+    if (updateData.staffId === undefined && updateData.staffDuration !== undefined) {
+      const val = updateData.staffDuration;
+      if (val === null || String(val).toLowerCase() === "null") {
+        patch.staffDuration = null;
+      } else {
+        const sdNum = Number(val);
+        if (!Number.isFinite(sdNum) || sdNum <= 0) {
+          throw new Error("staffDuration debe ser un número positivo o 'null'");
+        }
+        patch.staffDuration = sdNum;
+      }
+    }
+    if (updateData.staffId === undefined && updateData.staffcommission !== undefined) {
+      const val = updateData.staffcommission;
+      if (val === null || String(val).toLowerCase() === "null") {
+        patch.staffcommission = null;
+      } else {
+        const scNum = Number(val);
+        if (!Number.isFinite(scNum) || scNum < 0) {
+          throw new Error("staffcommission debe ser un número no negativo o 'null'");
+        }
+        patch.staffcommission = scNum;
+      }
+    }
+    if (updateData.staffId === undefined && updateData.staffprice !== undefined) {
+      const val = updateData.staffprice;
+      if (val === null || String(val).toLowerCase() === "null") {
+        patch.staffprice = null;
+      } else {
+        const spNum = Number(val);
+        if (!Number.isFinite(spNum) || spNum < 0) {
+          throw new Error("staffprice debe ser un número no negativo o 'null'");
+        }
+        patch.staffprice = spNum;
+      }
+    }
     let effectiveCategory = data.category;
     if (updateData.category !== undefined) {
       const catStr = String(updateData.category ?? "").toLowerCase();
@@ -1413,8 +1449,86 @@ export const updateService = async (businessId, serviceId, updateData) => {
     }
     patch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
     await ref.update(patch);
+    // Opcional: aplicar overrides por staff si se envía staffId
+    if (updateData.staffId !== undefined) {
+      const stid = String(updateData.staffId);
+      const staffRef = db.collection("staff").doc(stid);
+      const staffDoc = await staffRef.get();
+      if (!staffDoc.exists) {
+        throw new Error("Staff not found");
+      }
+      const sdata = staffDoc.data();
+      if (Number(sdata.businessId) !== bizIdNum) {
+        throw new Error("Staff no pertenece al negocio");
+      }
+      const staffPatch = {};
+      if (updateData.staffDuration !== undefined) {
+        const val = updateData.staffDuration;
+        if (val === null || String(val).toLowerCase() === "null") {
+          staffPatch[`staffServiceConfigs.${sid}.staffDuration`] = null;
+        } else {
+          const sdNum = Number(val);
+          if (!Number.isFinite(sdNum) || sdNum <= 0) {
+            throw new Error("staffDuration debe ser un número positivo o 'null'");
+          }
+          staffPatch[`staffServiceConfigs.${sid}.staffDuration`] = sdNum;
+        }
+      }
+      if (updateData.staffcommission !== undefined) {
+        const val = updateData.staffcommission;
+        if (val === null || String(val).toLowerCase() === "null") {
+          staffPatch[`staffServiceConfigs.${sid}.staffcommission`] = null;
+        } else {
+          const scNum = Number(val);
+          if (!Number.isFinite(scNum) || scNum < 0) {
+            throw new Error("staffcommission debe ser un número no negativo o 'null'");
+          }
+          staffPatch[`staffServiceConfigs.${sid}.staffcommission`] = scNum;
+        }
+      }
+      if (updateData.staffprice !== undefined) {
+        const val = updateData.staffprice;
+        if (val === null || String(val).toLowerCase() === "null") {
+          staffPatch[`staffServiceConfigs.${sid}.staffprice`] = null;
+        } else {
+          const spNum = Number(val);
+          if (!Number.isFinite(spNum) || spNum < 0) {
+            throw new Error("staffprice debe ser un número no negativo o 'null'");
+          }
+          staffPatch[`staffServiceConfigs.${sid}.staffprice`] = spNum;
+        }
+      }
+      staffPatch.staffServices = admin.firestore.FieldValue.arrayUnion(Number(sid));
+      staffPatch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+      await staffRef.update(staffPatch);
+    }
     const updated = await ref.get();
-    return updated.data();
+    const updatedData = updated.data();
+    // Construir staff[] para este servicio
+    const staffList = [];
+    const staffSnap = await db.collection("staff").where("businessId", "==", bizIdNum).get();
+    staffSnap.docs.forEach((sd) => {
+      const d = sd.data();
+      const ss = Array.isArray(d.staffServices) ? d.staffServices.map((x) => Number(x)) : [];
+      const sidNum = Number(updatedData.id ?? Number(sid));
+      if (ss.includes(sidNum)) {
+        const cfg = d.staffServiceConfigs && d.staffServiceConfigs[String(sidNum)] ? d.staffServiceConfigs[String(sidNum)] : {};
+        const staffIdNum = Number(sd.id);
+        staffList.push({
+          id: Number.isFinite(staffIdNum) ? staffIdNum : sd.id,
+          staffDuration: cfg.staffDuration ?? null,
+          staffcommission: cfg.staffcommission ?? null,
+          staffprice: cfg.staffprice ?? null,
+        });
+      }
+    });
+    // No incluir overrides top-level si se envió staffId
+    if (updateData.staffId !== undefined) {
+      delete updatedData.staffDuration;
+      delete updatedData.staffcommission;
+      delete updatedData.staffprice;
+    }
+    return { ...updatedData, staff: staffList };
   } catch (error) {
     console.error("Firestore error actualizando servicio:", error);
     throw new Error(error.message);
@@ -1450,15 +1564,43 @@ export const getServicesByBusiness = async (businessId, category) => {
       const catStr = String(category).toLowerCase();
       query = query.where("category", "==", catStr);
     }
-    const snap = await query.get();
+    const [snap, staffSnap] = await Promise.all([
+      query.get(),
+      db.collection("staff").where("businessId", "==", bizIdNum).get(),
+    ]);
+    const staffRecords = staffSnap.docs.map((sd) => {
+      const d = sd.data();
+      return {
+        id: sd.id,
+        staffServices: Array.isArray(d.staffServices) ? d.staffServices.map((x) => Number(x)) : [],
+        cfg: d.staffServiceConfigs || {},
+      };
+    });
     return snap.docs.map((d) => {
       const s = d.data();
+      const serviceIdNum = Number(s.id ?? Number(d.id));
+      const staffList = staffRecords
+        .filter((st) => st.staffServices.includes(serviceIdNum))
+        .map((st) => {
+          const key = String(serviceIdNum);
+          const c = st.cfg && st.cfg[key] ? st.cfg[key] : {};
+          const sidNum = Number(st.id);
+          return {
+            id: Number.isFinite(sidNum) ? sidNum : st.id,
+            staffDuration: c.staffDuration ?? null,
+            staffcommission: c.staffcommission ?? null,
+            staffprice: c.staffprice ?? null,
+          };
+        });
       return {
         id: s.id ?? Number(d.id),
         businessId: bizIdNum,
         name: s.name ?? "",
         type: s.type ?? "",
         duration: s.duration ?? null,
+        staffDuration: s.staffDuration ?? null,
+        staffcommission: s.staffcommission ?? null,
+        staff: staffList,
         price: s.price ?? null,
         category: s.category ?? "service",
         description: s.description ?? "",
@@ -1484,7 +1626,13 @@ export const getServiceTypesByBusiness = async (businessId) => {
       const t = String(s.type ?? "").trim();
       if (!t) return;
       const list = map.get(t) || [];
-      list.push({ id: s.id ?? Number(d.id), name: s.name ?? "" });
+      const sd = s.staffDuration;
+      list.push({
+        id: s.id ?? Number(d.id),
+        name: s.name ?? "",
+        duration: s.duration ?? null,
+        staffDuration: sd !== undefined && sd !== null ? String(sd) : null,
+      });
       map.set(t, list);
     });
     const result = Array.from(map.entries()).map(([type, services]) => ({ type, services }));
