@@ -220,6 +220,63 @@ const options = {
             reminderMinutes: { type: "string", nullable: true, example: "30", description: "Enviar 'null' para limpiar" },
           },
         },
+        Expense: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            businessId: { type: "number" },
+            name: { type: "string", example: "Compra de insumos" },
+            categoryId: { type: "number", nullable: true },
+            categoryName: { type: "string", example: "Insumos" },
+            amount: { type: "number", example: 150.5 },
+            paidAt: { type: "string", example: "15/02/2026", description: "dd/MM/YYYY" },
+            paidAtISO: { type: "string", example: "2026-02-15" },
+            isoYear: { type: "number", example: 2026 },
+            isoWeek: { type: "number", example: 7 },
+          },
+        },
+        CreateExpenseRequest: {
+          type: "object",
+          required: ["businessId", "name", "paidAt", "amount"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            name: { type: "string", example: "Compra de toallas" },
+            category: { type: "string", nullable: true, example: "Insumos", description: "Nombre de la categoría (opcional si se envía categoryId)" },
+            categoryId: { type: "number", nullable: true, example: 3, description: "ID de la categoría (opcional si se envía category)" },
+            paidAt: { type: "string", example: "15/02/2026", description: "dd/MM/YYYY o YYYY-MM-DD" },
+            amount: { type: "number", example: 250.0 },
+          },
+        },
+        ListExpensesResponse: {
+          type: "object",
+          properties: {
+            expenses: { type: "array", items: { $ref: "#/components/schemas/Expense" } },
+            total: { type: "number" },
+          },
+        },
+        ExpenseCategory: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            businessId: { type: "number" },
+            name: { type: "string", example: "Insumos" },
+          },
+        },
+        CreateExpenseCategoryRequest: {
+          type: "object",
+          required: ["businessId", "name"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            name: { type: "string", example: "Renta" },
+          },
+        },
+        ListExpenseCategoriesResponse: {
+          type: "object",
+          properties: {
+            categories: { type: "array", items: { $ref: "#/components/schemas/ExpenseCategory" } },
+            total: { type: "number" },
+          },
+        },
         Service: {
           type: "object",
           properties: {
@@ -847,6 +904,66 @@ const options = {
           ],
           responses: {
             200: { description: "Listado de tipos de servicio", content: { "application/json": { schema: { $ref: "#/components/schemas/ListServiceTypesResponse" } } } },
+            400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/expenses": {
+        post: {
+          tags: ["Gastos"],
+          summary: "Crear gasto",
+          description: "Solo rol business.",
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateExpenseRequest" } } } },
+          responses: {
+            201: { description: "Gasto creado", content: { "application/json": { schema: { type: "object", properties: { expense: { $ref: "#/components/schemas/Expense" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+          },
+        },
+      },
+      "/expenses/{businessId}": {
+        get: {
+          tags: ["Gastos"],
+          summary: "Listar gastos por negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "number" } },
+            { name: "year", in: "query", required: false, schema: { type: "number" }, description: "Año a filtrar" },
+            { name: "week", in: "query", required: false, schema: { type: "number" }, description: "Semana ISO a filtrar (requiere year)" },
+          ],
+          responses: {
+            200: { description: "Listado de gastos", content: { "application/json": { schema: { $ref: "#/components/schemas/ListExpensesResponse" } } } },
+            400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/expense-categories": {
+        post: {
+          tags: ["Gastos"],
+          summary: "Crear categoría de gasto",
+          description: "Solo rol business.",
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateExpenseCategoryRequest" } } } },
+          responses: {
+            201: { description: "Categoría creada", content: { "application/json": { schema: { type: "object", properties: { category: { $ref: "#/components/schemas/ExpenseCategory" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+          },
+        },
+      },
+      "/expense-categories/{businessId}": {
+        get: {
+          tags: ["Gastos"],
+          summary: "Listar categorías de gasto por negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "number" } },
+          ],
+          responses: {
+            200: { description: "Listado de categorías", content: { "application/json": { schema: { $ref: "#/components/schemas/ListExpenseCategoriesResponse" } } } },
             400: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },

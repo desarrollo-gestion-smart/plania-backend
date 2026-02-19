@@ -1810,3 +1810,188 @@ export const getBusinessPolicies = async (businessId) => {
     throw new Error(error.message);
   }
 };
+
+export const createExpenseCategory = async (businessId, name) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    if (bq.empty) {
+      throw new Error("Business not found");
+    }
+    const n = String(name || "").trim();
+    if (!n) {
+      throw new Error("name requerido");
+    }
+    const newId = await getNextId("expenseCategoryId");
+    const ref = db.collection("expense-categories").doc(String(newId));
+    const doc = {
+      id: newId,
+      businessId: bizIdNum,
+      name: n,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await ref.set(doc);
+    return doc;
+  } catch (error) {
+    console.error("Firestore error creando categoría de gasto:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getExpenseCategoriesByBusiness = async (businessId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    const snap = await db.collection("expense-categories").where("businessId", "==", bizIdNum).get();
+    return snap.docs.map((d) => {
+      const data = d.data() || {};
+      return {
+        id: data.id ?? Number(d.id),
+        businessId: bizIdNum,
+        name: data.name ?? "",
+      };
+    });
+  } catch (error) {
+    console.error("Firestore error listando categorías de gasto:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const createExpense = async ({ businessId, name, category, categoryId, paidAt, amount }) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    if (bq.empty) {
+      throw new Error("Business not found");
+    }
+    const nm = String(name || "").trim();
+    if (!nm) throw new Error("name requerido");
+    const amtNum = Number(amount);
+    if (!Number.isFinite(amtNum) || amtNum < 0) {
+      throw new Error("amount debe ser un número no negativo");
+    }
+    let catIdNum = categoryId !== undefined && categoryId !== null ? Number(categoryId) : undefined;
+    let catName = category !== undefined && category !== null ? String(category).trim() : undefined;
+    if (catIdNum !== undefined && !Number.isFinite(catIdNum)) {
+      throw new Error("categoryId inválido");
+    }
+    if (catIdNum !== undefined) {
+      const cdoc = await db.collection("expense-categories").doc(String(catIdNum)).get();
+      if (!cdoc.exists) throw new Error("Categoría no encontrada");
+      const cdata = cdoc.data();
+      if (Number(cdata.businessId) !== bizIdNum) throw new Error("Categoría no pertenece al negocio");
+      catName = cdata.name ?? (catName || "");
+    }
+    if ((!catName || !catName.trim()) && catIdNum === undefined) {
+      throw new Error("category requerido");
+    }
+    const normalizeDate = (s) => {
+      const str = String(s || "").trim();
+      const m1 = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(str);
+      if (m1) {
+        const dd = Number(m1[1]);
+        const mm = Number(m1[2]);
+        const yyyy = Number(m1[3]);
+        const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
+        const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+        return { date: dt, iso, display: `${m1[1]}/${m1[2]}/${m1[3]}` };
+      }
+      const m2 = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(str);
+      if (m2) {
+        const yyyy = Number(m2[1]);
+        const mm = Number(m2[2]);
+        const dd = Number(m2[3]);
+        const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
+        const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+        return { date: dt, iso, display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}` };
+      }
+      throw new Error("paidAt debe tener formato dd/MM/YYYY o YYYY-MM-DD");
+    };
+    const d = normalizeDate(paidAt);
+    const calcISOWeek = (date) => {
+      const tmp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+      const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      const isoYear = tmp.getUTCFullYear();
+      return { isoYear, isoWeek: weekNo };
+    };
+    const { isoYear, isoWeek } = calcISOWeek(d.date);
+    const newId = await getNextId("expenseId");
+    const ref = db.collection("expenses").doc(String(newId));
+    const doc = {
+      id: newId,
+      businessId: bizIdNum,
+      name: nm,
+      categoryId: catIdNum ?? null,
+      categoryName: catName ?? "",
+      amount: amtNum,
+      paidAt: d.display,
+      paidAtISO: d.iso,
+      paidAtTimestamp: admin.firestore.Timestamp.fromDate(new Date(d.date.getTime())),
+      year: Number(d.display.slice(6, 10)),
+      month: Number(d.display.slice(3, 5)),
+      isoYear,
+      isoWeek,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await ref.set(doc);
+    return {
+      id: newId,
+      businessId: bizIdNum,
+      name: nm,
+      categoryId: doc.categoryId,
+      categoryName: doc.categoryName,
+      amount: amtNum,
+      paidAt: doc.paidAt,
+      paidAtISO: doc.paidAtISO,
+      isoYear,
+      isoWeek,
+    };
+  } catch (error) {
+    console.error("Firestore error creando gasto:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getExpensesByBusiness = async (businessId, { year, week } = {}) => {
+  try {
+    const bizIdNum = Number(businessId);
+    let q = db.collection("expenses").where("businessId", "==", bizIdNum);
+    const snap = await q.get();
+    const list = snap.docs.map((d) => {
+      const data = d.data() || {};
+      return {
+        id: data.id ?? Number(d.id),
+        businessId: bizIdNum,
+        name: data.name ?? "",
+        categoryId: data.categoryId ?? null,
+        categoryName: data.categoryName ?? "",
+        amount: data.amount ?? 0,
+        paidAt: data.paidAt ?? null,
+        paidAtISO: data.paidAtISO ?? null,
+        isoYear: data.isoYear ?? null,
+        isoWeek: data.isoWeek ?? null,
+        year: data.year ?? null,
+        month: data.month ?? null,
+      };
+    });
+    if (typeof year === "number" && typeof week === "number") {
+      return list.filter((e) => Number(e.isoYear) === Number(year) && Number(e.isoWeek) === Number(week));
+    }
+    if (typeof year === "number") {
+      return list.filter((e) => Number(e.year) === Number(year));
+    }
+    return list;
+  } catch (error) {
+    console.error("Firestore error listando gastos:", error);
+    throw new Error(error.message);
+  }
+};

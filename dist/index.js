@@ -20,6 +20,8 @@ import appointmentsRoutes from "./routes/appointmentsRoutes.js";
 import servicesRoutes from "./routes/servicesRoutes.js";
 // @ts-ignore
 import schedulesRoutes from "./routes/schedulesRoutes.js";
+// @ts-ignore
+import expensesRoutes from "./routes/expensesRoutes.js";
 dotenv.config();
 initFirebase();
 const app = express();
@@ -85,6 +87,7 @@ app.use("/api", staffRoutes);
 app.use("/api", appointmentsRoutes);
 app.use("/api", servicesRoutes);
 app.use("/api", schedulesRoutes);
+app.use("/api", expensesRoutes);
 const envPort = process.env.PORT;
 const PORT = envPort && !isNaN(Number(envPort)) ? Number(envPort) : 3000;
 // Escuchar en 0.0.0.0 para que el servidor sea accesible desde la red local (ej. app móvil en 192.168.x.x)
