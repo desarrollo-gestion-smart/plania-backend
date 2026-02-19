@@ -4,6 +4,12 @@ import bcrypt from "bcrypt";
 
 const db = admin.firestore();
 
+const DEFAULT_STAFF_PERMISSIONS = {
+  manualAppointments: false,
+  manualBlocks: false,
+  viewClientPhone: false,
+};
+
 const hashCode = (code) => {
   return crypto.createHash('sha256').update(code).digest('hex');
 };
@@ -167,7 +173,7 @@ const getNextStaffId = async () => {
   });
 };
 
-export const addStaff = async (businessId, nombre, numero, password, avatar = null, apellido = '', staffId = null) => {
+export const addStaff = async (businessId, nombre, numero, password, avatar = null, apellido = '', staffId = null, options = {}) => {
   try {
     console.log('Adding staff:', { businessId, nombre, apellido, numero, staffId });
 
@@ -189,6 +195,14 @@ export const addStaff = async (businessId, nombre, numero, password, avatar = nu
 
     const finalStaffId = staffId ? String(staffId) : String(await getNextStaffId());
     const staffRef = db.collection("staff").doc(finalStaffId);
+    const rawPermissions = options && typeof options.permissions === "object" && options.permissions !== null
+      ? options.permissions
+      : {};
+    const permissions = {
+      manualAppointments: Boolean(rawPermissions.manualAppointments ?? DEFAULT_STAFF_PERMISSIONS.manualAppointments),
+      manualBlocks: Boolean(rawPermissions.manualBlocks ?? DEFAULT_STAFF_PERMISSIONS.manualBlocks),
+      viewClientPhone: Boolean(rawPermissions.viewClientPhone ?? DEFAULT_STAFF_PERMISSIONS.viewClientPhone),
+    };
     await staffRef.set({
       id: staffRef.id,
       businessId,
@@ -201,10 +215,19 @@ export const addStaff = async (businessId, nombre, numero, password, avatar = nu
       staffdates: [],
       staffAppoinments: [],
       staffAppointmentsHour: [],
+      permissions,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     console.log('Staff added successfully with id:', staffRef.id);
-    return { id: staffRef.id, businessId, nombre, apellido: typeof apellido === 'string' ? apellido : '', numero, avatar: avatar || null };
+    return {
+      id: staffRef.id,
+      businessId,
+      nombre,
+      apellido: typeof apellido === 'string' ? apellido : '',
+      numero,
+      avatar: avatar || null,
+      permissions,
+    };
   } catch (error) {
     console.error("Firestore error adding staff:", error);
     throw new Error(`Error adding staff: ${error.message}`);
@@ -217,6 +240,7 @@ export const getStaffByBusiness = async (businessId) => {
     const staffQuery = await db.collection("staff").where("businessId", "==", businessId).get();
     const staff = staffQuery.docs.map(doc => {
       const data = doc.data();
+      const rawPermissions = data.permissions || {};
       return {
         apellido: typeof data.apellido === 'string' ? data.apellido : '',
         avatar: data.avatar ?? null,
@@ -231,6 +255,11 @@ export const getStaffByBusiness = async (businessId) => {
         staffdates: Array.isArray(data.staffdates) ? data.staffdates : [],
         staffAppoinments: Array.isArray(data.staffAppoinments) ? data.staffAppoinments : [],
         staffAppointmentsHour: Array.isArray(data.staffAppointmentsHour) ? data.staffAppointmentsHour : [],
+        permissions: {
+          manualAppointments: Boolean(rawPermissions.manualAppointments ?? DEFAULT_STAFF_PERMISSIONS.manualAppointments),
+          manualBlocks: Boolean(rawPermissions.manualBlocks ?? DEFAULT_STAFF_PERMISSIONS.manualBlocks),
+          viewClientPhone: Boolean(rawPermissions.viewClientPhone ?? DEFAULT_STAFF_PERMISSIONS.viewClientPhone),
+        },
       };
     });
     console.log('Staff retrieved successfully');
@@ -579,7 +608,7 @@ export const resendBusinessVerificationCode = async (id) => {
   }
 };
 
-export const updateStaffFields = async (staffId, { nombre, apellido, numero, password }) => {
+export const updateStaffFields = async (staffId, { nombre, apellido, numero, password, permissions }) => {
   try {
     const staffRef = db.collection("staff").doc(String(staffId));
     const docSnap = await staffRef.get();
@@ -620,13 +649,34 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
       updateData.password = hashedPassword; // null if empty string provided
     }
 
+    if (permissions !== undefined) {
+      if (permissions && typeof permissions === "object") {
+        const current = docSnap.data().permissions || {};
+        updateData.permissions = {
+          manualAppointments: Boolean(permissions.manualAppointments ?? current.manualAppointments ?? DEFAULT_STAFF_PERMISSIONS.manualAppointments),
+          manualBlocks: Boolean(permissions.manualBlocks ?? current.manualBlocks ?? DEFAULT_STAFF_PERMISSIONS.manualBlocks),
+          viewClientPhone: Boolean(permissions.viewClientPhone ?? current.viewClientPhone ?? DEFAULT_STAFF_PERMISSIONS.viewClientPhone),
+        };
+      }
+    }
+
     updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
     await staffRef.update(updateData);
 
     const updatedSnap = await staffRef.get();
     const data = updatedSnap.data();
-    return { id: updatedSnap.id, nombre: data.nombre, apellido: data.apellido || '', numero: data.numero };
+    return {
+      id: updatedSnap.id,
+      nombre: data.nombre,
+      apellido: data.apellido || '',
+      numero: data.numero,
+      permissions: data.permissions || {
+        manualAppointments: DEFAULT_STAFF_PERMISSIONS.manualAppointments,
+        manualBlocks: DEFAULT_STAFF_PERMISSIONS.manualBlocks,
+        viewClientPhone: DEFAULT_STAFF_PERMISSIONS.viewClientPhone,
+      },
+    };
   } catch (error) {
     console.error("Firestore error updating staff fields:", error);
     throw new Error(error.message);
@@ -1207,6 +1257,11 @@ export const getBusinessById = async (businessId) => {
       name: data.name ?? '',
       description: data.description ?? '',
       isInitialSetupComplete: !!data.isInitialSetupComplete,
+      policies: {
+        cancellationAdvanceMinutes: data?.policies?.cancellationAdvanceMinutes ?? null,
+        minAdvanceBookingMinutes: data?.policies?.minAdvanceBookingMinutes ?? null,
+        reminderMinutes: data?.policies?.reminderMinutes ?? null,
+      },
     };
   } catch (error) {
     console.error("Firestore error obteniendo negocio por id:", error);
@@ -1691,6 +1746,67 @@ export const setStaffServices = async (businessId, staffId, serviceIds) => {
     return { staffId: stid, businessId: bizIdNum, services };
   } catch (error) {
     console.error("Firestore error asignando servicios a staff:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateBusinessPolicies = async (businessId, { cancellationAdvanceMinutes, minAdvanceBookingMinutes, reminderMinutes }) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+    const ref = db.collection("user-business").doc(String(bizIdNum));
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new Error("Business not found");
+    }
+    const parseMinutes = (val, field) => {
+      if (val === undefined) return undefined;
+      if (val === null || String(val).toLowerCase() === "null") return null;
+      const n = Number(val);
+      if (!Number.isFinite(n) || n < 0) {
+        throw new Error(`${field} debe ser un número no negativo o 'null'`);
+      }
+      return Math.floor(n);
+    };
+    const polPatch = {};
+    const c = parseMinutes(cancellationAdvanceMinutes, "cancellationAdvanceMinutes");
+    const a = parseMinutes(minAdvanceBookingMinutes, "minAdvanceBookingMinutes");
+    const r = parseMinutes(reminderMinutes, "reminderMinutes");
+    if (c !== undefined) polPatch["policies.cancellationAdvanceMinutes"] = c;
+    if (a !== undefined) polPatch["policies.minAdvanceBookingMinutes"] = a;
+    if (r !== undefined) polPatch["policies.reminderMinutes"] = r;
+    polPatch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await ref.update(polPatch);
+    const updated = await ref.get();
+    const data = updated.data() || {};
+    return {
+      cancellationAdvanceMinutes: data?.policies?.cancellationAdvanceMinutes ?? null,
+      minAdvanceBookingMinutes: data?.policies?.minAdvanceBookingMinutes ?? null,
+      reminderMinutes: data?.policies?.reminderMinutes ?? null,
+    };
+  } catch (error) {
+    console.error("Firestore error actualizando políticas de negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getBusinessPolicies = async (businessId) => {
+  try {
+    const ref = db.collection("user-business").doc(String(businessId));
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new Error("Business not found");
+    }
+    const data = snap.data() || {};
+    return {
+      cancellationAdvanceMinutes: data?.policies?.cancellationAdvanceMinutes ?? null,
+      minAdvanceBookingMinutes: data?.policies?.minAdvanceBookingMinutes ?? null,
+      reminderMinutes: data?.policies?.reminderMinutes ?? null,
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo políticas de negocio:", error);
     throw new Error(error.message);
   }
 };

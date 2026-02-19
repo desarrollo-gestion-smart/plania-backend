@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers, deleteBusiness } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController } from "../controllers/userController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import admin from "firebase-admin";
 import { verifyRefreshToken, generateToken, generateRefreshToken } from "../utils/jwt.js";
@@ -146,6 +146,10 @@ router.patch(
 
 // GET /api/get-business/:businessId
 router.get("/get-business/:businessId", authenticateToken, getBusinessInfo);
+
+// Policies
+router.get("/business/:businessId/policies", authenticateToken, getBusinessPoliciesController);
+router.patch("/business/:businessId/policies", authenticateToken, authorizeRoles("business"), updateBusinessPoliciesController);
 
 // GET /api/users - Lista de usuarios registrados
 router.get("/users", authenticateToken, getUsers);

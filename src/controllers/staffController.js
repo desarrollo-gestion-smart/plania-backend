@@ -4,7 +4,7 @@ import { generateToken } from "../utils/jwt.js";
 
 export const addStaffMember = async (req, res) => {
   try {
-    const { businessId, id: staffId = null, nombre, apellido = '', numero, password } = req.body;
+    const { businessId, id: staffId = null, nombre, apellido = '', numero, password, permissions } = req.body;
 
     if (!businessId || !nombre || !numero || !password) {
       return res.status(400).json({ error: "businessId, nombre, numero y password son requeridos" });
@@ -20,9 +20,19 @@ export const addStaffMember = async (req, res) => {
       return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
     }
 
-    const staff = await addStaff(Number(businessId), nombre, numero, password, null, apellido, staffId);
+    const staff = await addStaff(Number(businessId), nombre, numero, password, null, apellido, staffId, { permissions });
 
-    res.status(201).json({ message: "Miembro del personal agregado exitosamente", staff: { id: staff.id, businessId: staff.businessId, nombre: staff.nombre, apellido: staff.apellido || '', numero: staff.numero } });
+    res.status(201).json({
+      message: "Miembro del personal agregado exitosamente",
+      staff: {
+        id: staff.id,
+        businessId: staff.businessId,
+        nombre: staff.nombre,
+        apellido: staff.apellido || '',
+        numero: staff.numero,
+        permissions: staff.permissions,
+      },
+    });
   } catch (error) {
     console.error("Error agregando miembro del personal:", error);
     res.status(400).json({ error: error.message });
@@ -37,7 +47,24 @@ export const getStaff = async (req, res) => {
       return res.status(400).json({ error: "businessId es requerido" });
     }
 
-    const staff = await getStaffByBusiness(Number(businessId));
+    const rawStaff = await getStaffByBusiness(Number(businessId));
+
+    const staff = rawStaff.map((s) => ({
+      id: s.id,
+      businessId: s.businessId,
+      nombre: s.nombre ?? "",
+      apellido: s.apellido ?? "",
+      numero: s.numero ?? "",
+      avatar: s.avatar ?? null,
+      staffServices: Array.isArray(s.staffServices) ? s.staffServices : [],
+      permissions: s.permissions || {
+        manualAppointments: false,
+        manualBlocks: false,
+        viewClientPhone: false,
+      },
+      createdAt: s.createdAt?.toDate?.().toISOString?.() ?? null,
+      updatedAt: s.updatedAt?.toDate?.().toISOString?.() ?? null,
+    }));
 
     res.status(200).json({ staff });
   } catch (error) {
@@ -81,7 +108,7 @@ export const loginStaffMember = async (req, res) => {
 
 export const updateStaffMember = async (req, res) => {
   try {
-    const { id, nombre, apellido, numero, password } = req.body;
+    const { id, nombre, apellido, numero, password, permissions } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "id es requerido" });
@@ -94,7 +121,21 @@ export const updateStaffMember = async (req, res) => {
       }
     }
 
-    const updated = await updateStaffFields(id, { nombre, apellido, numero, password });
+    // Solo un negocio puede modificar permisos del staff
+    const requesterRole = req.user?.role;
+
+    const payload = {
+      nombre,
+      apellido,
+      numero,
+      password,
+    };
+
+    if (requesterRole === "business" && permissions !== undefined) {
+      payload.permissions = permissions;
+    }
+
+    const updated = await updateStaffFields(id, payload);
 
     return res.status(200).json({ message: "Staff actualizado exitosamente", staff: updated });
   } catch (error) {

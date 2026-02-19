@@ -11,6 +11,35 @@ export const createAppointmentController = async (req, res) => {
       return res.status(400).json({ error: "Faltan campos requeridos: businessId, staffId, userId, date, horario" });
     }
 
+    const requester = req.user || {};
+    const requesterRole = requester.role;
+    const requesterId = requester.id;
+
+    // Si es staff, solo puede crear citas para su propio staffId
+    // y debe tener permiso de agendamiento manual.
+    if (requesterRole === "staff") {
+      if (!requesterId) {
+        return res.status(403).json({ error: "No tienes permisos para gestionar citas" });
+      }
+      if (String(staffId) !== String(requesterId)) {
+        return res.status(403).json({ error: "No puedes crear citas para otro miembro del staff" });
+      }
+
+      const staffSnap = await admin.firestore().collection("staff").doc(String(requesterId)).get();
+      if (!staffSnap.exists) {
+        return res.status(403).json({ error: "Staff no encontrado para el usuario autenticado" });
+      }
+      const staffData = staffSnap.data() || {};
+      const perms = staffData.permissions || {};
+      const canManualAppointments = Boolean(perms.manualAppointments);
+      if (!canManualAppointments) {
+        return res.status(403).json({ error: "No tienes permisos para crear, editar o eliminar citas" });
+      }
+      if (Number(staffData.businessId) !== Number(businessId)) {
+        return res.status(403).json({ error: "No puedes gestionar citas de otro negocio" });
+      }
+    }
+
     const appointment = await createAppointment({
       businessId: Number(businessId),
       staffId: String(staffId),
@@ -38,6 +67,22 @@ export const createAppointmentController = async (req, res) => {
       }
     }
 
+    // Controlar visibilidad del número de teléfono del cliente
+    let showUserPhone = true;
+    if (requesterRole === "staff" && requesterId) {
+      const staffSnap = await admin.firestore().collection("staff").doc(String(requesterId)).get();
+      if (staffSnap.exists) {
+        const staffData = staffSnap.data() || {};
+        const perms = staffData.permissions || {};
+        const canViewClientPhone = Boolean(perms.viewClientPhone);
+        if (!canViewClientPhone) {
+          showUserPhone = false;
+        }
+      } else {
+        showUserPhone = false;
+      }
+    }
+
     return res.status(201).json({
       appointment: {
         businessId: appointment.businessId,
@@ -51,7 +96,7 @@ export const createAppointmentController = async (req, res) => {
         user: {
           id: appointment.userId,
           nombre: appointment.userNombre ?? "",
-          numero: appointment.userNumero ?? "",
+          numero: showUserPhone ? (appointment.userNumero ?? "") : null,
         },
       }
     });
@@ -75,6 +120,38 @@ export const updateAppointmentStateController = async (req, res) => {
       return res.status(400).json({ error: `state es requerido. Valores permitidos: ${APPOINTMENT_STATES.join(", ")}` });
     }
 
+    const requester = req.user || {};
+    const requesterRole = requester.role;
+    const requesterId = requester.id;
+
+    if (requesterRole === "staff") {
+      if (!requesterId) {
+        return res.status(403).json({ error: "No tienes permisos para actualizar esta cita" });
+      }
+
+      const apptRef = admin.firestore().collection("appointments").doc(String(appointmentId));
+      const apptSnap = await apptRef.get();
+      if (!apptSnap.exists) {
+        return res.status(404).json({ error: "Cita no encontrada" });
+      }
+      const apptData = apptSnap.data() || {};
+      const ownerStaffId = String(apptData.staffAppoinments ?? apptData.staffId ?? "");
+      if (ownerStaffId !== String(requesterId)) {
+        return res.status(403).json({ error: "No puedes modificar citas de otro miembro del staff" });
+      }
+
+      const staffSnap = await admin.firestore().collection("staff").doc(String(requesterId)).get();
+      if (!staffSnap.exists) {
+        return res.status(403).json({ error: "Staff no encontrado para el usuario autenticado" });
+      }
+      const staffData = staffSnap.data() || {};
+      const perms = staffData.permissions || {};
+      const canManualAppointments = Boolean(perms.manualAppointments);
+      if (!canManualAppointments) {
+        return res.status(403).json({ error: "No tienes permisos para crear, editar o eliminar citas" });
+      }
+    }
+
     const result = await updateAppointmentState(appointmentId, state);
     return res.status(200).json({ message: "Estado actualizado exitosamente", ...result });
   } catch (error) {
@@ -95,9 +172,55 @@ export const listAppointmentsByBusiness = async (req, res) => {
     if (!businessId) {
       return res.status(400).json({ error: "Parámetro businessId es requerido" });
     }
+    const bizIdNum = Number(businessId);
+    const requester = req.user || {};
+    const requesterRole = requester.role;
+    const requesterId = requester.id;
 
-    const results = await getAppointmentsByBusiness(Number(businessId));
-    return res.status(200).json({ appointments: results });
+    if (!Number.isFinite(bizIdNum)) {
+      return res.status(400).json({ error: "businessId debe ser numérico" });
+    }
+
+    // Asegurar que solo ve citas del negocio al que pertenece
+    if (requesterRole === "business") {
+      if (!requesterId || Number(requesterId) !== bizIdNum) {
+        return res.status(403).json({ error: "No puedes ver citas de otro negocio" });
+      }
+    } else if (requesterRole === "staff") {
+      if (!requesterId) {
+        return res.status(403).json({ error: "No tienes permisos para ver estas citas" });
+      }
+      const staffSnap = await admin.firestore().collection("staff").doc(String(requesterId)).get();
+      if (!staffSnap.exists) {
+        return res.status(403).json({ error: "Staff no encontrado para el usuario autenticado" });
+      }
+      const staffData = staffSnap.data() || {};
+      if (Number(staffData.businessId) !== bizIdNum) {
+        return res.status(403).json({ error: "No puedes ver citas de otro negocio" });
+      }
+    }
+
+    const results = await getAppointmentsByBusiness(bizIdNum);
+
+    // Controlar visibilidad del número de teléfono del cliente para staff
+    let finalResults = results;
+    if (requesterRole === "staff" && requesterId) {
+      const staffSnap = await admin.firestore().collection("staff").doc(String(requesterId)).get();
+      let canViewClientPhone = false;
+      if (staffSnap.exists) {
+        const staffData = staffSnap.data() || {};
+        const perms = staffData.permissions || {};
+        canViewClientPhone = Boolean(perms.viewClientPhone);
+      }
+      if (!canViewClientPhone) {
+        finalResults = results.map((appt) => ({
+          ...appt,
+          userNumero: null,
+        }));
+      }
+    }
+
+    return res.status(200).json({ appointments: finalResults });
   } catch (error) {
     const msg = error?.message || "Error obteniendo citas";
     return res.status(500).json({ error: msg });

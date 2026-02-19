@@ -204,6 +204,22 @@ const options = {
             message: { type: "string", example: "Logout exitoso" },
           },
         },
+        BusinessPolicies: {
+          type: "object",
+          properties: {
+            cancellationAdvanceMinutes: { type: "number", nullable: true, example: 120, description: "Minutos de antelación para cancelar una cita" },
+            minAdvanceBookingMinutes: { type: "number", nullable: true, example: 60, description: "Antelación mínima para agendar" },
+            reminderMinutes: { type: "number", nullable: true, example: 30, description: "Minutos antes para enviar recordatorio" },
+          },
+        },
+        UpdateBusinessPoliciesRequest: {
+          type: "object",
+          properties: {
+            cancellationAdvanceMinutes: { type: "string", nullable: true, example: "120", description: "Enviar 'null' para limpiar" },
+            minAdvanceBookingMinutes: { type: "string", nullable: true, example: "60", description: "Enviar 'null' para limpiar" },
+            reminderMinutes: { type: "string", nullable: true, example: "30", description: "Enviar 'null' para limpiar" },
+          },
+        },
         Service: {
           type: "object",
           properties: {
@@ -1010,6 +1026,34 @@ const options = {
           responses: {
             200: { description: "Información del negocio" },
             401: { description: "No autenticado" },
+            404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/business/{businessId}/policies": {
+        get: {
+          tags: ["Negocios"],
+          summary: "Obtener políticas de un negocio",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            200: { description: "Políticas del negocio", content: { "application/json": { schema: { type: "object", properties: { policies: { $ref: "#/components/schemas/BusinessPolicies" } } } } } },
+            401: { description: "No autenticado" },
+            404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        patch: {
+          tags: ["Negocios"],
+          summary: "Actualizar políticas del negocio",
+          description: "Solo rol business. Valores en minutos; enviar 'null' para limpiar.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateBusinessPoliciesRequest" } } } },
+          responses: {
+            200: { description: "Políticas actualizadas", content: { "application/json": { schema: { type: "object", properties: { message: { type: "string" }, policies: { $ref: "#/components/schemas/BusinessPolicies" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
             404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },

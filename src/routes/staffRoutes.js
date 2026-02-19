@@ -34,7 +34,7 @@ router.put("/update-staff", authenticateToken, authorizeRoles("business", "staff
 router.get("/get-staff-name/:id", authenticateToken, getStaffName);
 
 // Staff schedules
-router.post("/staff/:staffId/schedules", authenticateToken, authorizeRoles("business"), createStaffScheduleController);
+router.post("/staff/:staffId/schedules", authenticateToken, authorizeRoles("business", "staff"), createStaffScheduleController);
 router.patch("/staff/:staffId/schedules/:scheduleId", authenticateToken, authorizeRoles("business", "staff"), updateStaffScheduleController);
 router.delete("/staff/:staffId/schedules/:scheduleId", authenticateToken, authorizeRoles("business", "staff"), deleteStaffScheduleController);
 router.get("/staff/:staffId/schedules", authenticateToken, listStaffSchedulesController);

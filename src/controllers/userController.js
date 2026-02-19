@@ -3,7 +3,7 @@ import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser,
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
-import { getBusinessById } from "../services/firestoreService.js";
+import { getBusinessById, updateBusinessPolicies, getBusinessPolicies } from "../services/firestoreService.js";
 import { generateToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 
 const db = admin.firestore();
@@ -495,6 +495,51 @@ export const getBusinessInfo = async (req, res) => {
     }
     console.error("Error en getBusinessInfo:", error);
     return res.status(500).json({ error: "Error al obtener la información del negocio" });
+  }
+};
+
+export const getBusinessPoliciesController = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    if (!businessId) {
+      return res.status(400).json({ error: "businessId es requerido" });
+    }
+    const policies = await getBusinessPolicies(businessId);
+    return res.status(200).json({ policies });
+  } catch (error) {
+    if (error.message === "Business not found") {
+      return res.status(404).json({ error: "Negocio no encontrado" });
+    }
+    console.error("Error en getBusinessPolicies:", error);
+    return res.status(500).json({ error: "Error al obtener políticas del negocio" });
+  }
+};
+
+export const updateBusinessPoliciesController = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    if (!businessId) {
+      return res.status(400).json({ error: "businessId es requerido" });
+    }
+    const requester = req.user || {};
+    const requesterRole = requester.role;
+    const requesterId = requester.id;
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      return res.status(400).json({ error: "businessId debe ser numérico" });
+    }
+    if (requesterRole === "business") {
+      if (!requesterId || Number(requesterId) !== bizIdNum) {
+        return res.status(403).json({ error: "No puedes actualizar políticas de otro negocio" });
+      }
+    }
+    const { cancellationAdvanceMinutes, minAdvanceBookingMinutes, reminderMinutes } = req.body || {};
+    const policies = await updateBusinessPolicies(businessId, { cancellationAdvanceMinutes, minAdvanceBookingMinutes, reminderMinutes });
+    return res.status(200).json({ message: "Políticas actualizadas", policies });
+  } catch (error) {
+    const msg = error?.message || "Error actualizando políticas del negocio";
+    const code = /inválido|debe ser|not found/i.test(msg) ? 400 : 500;
+    return res.status(code).json({ error: msg });
   }
 };
 

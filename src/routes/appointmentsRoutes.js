@@ -8,8 +8,8 @@ const router = express.Router();
 // Crear una cita (cualquier usuario autenticado)
 router.post("/appointments", authenticateToken, createAppointmentController);
 
-// Listar citas por businessId (cualquier usuario autenticado)
-router.get("/appointments/:businessId", authenticateToken, listAppointmentsByBusiness);
+// Listar citas por businessId (solo business o staff)
+router.get("/appointments/:businessId", authenticateToken, authorizeRoles("business", "staff"), listAppointmentsByBusiness);
 
 // Actualizar estado de una cita (business o staff)
 router.patch("/appointments/:appointmentId/state", authenticateToken, authorizeRoles("business", "staff"), updateAppointmentStateController);
