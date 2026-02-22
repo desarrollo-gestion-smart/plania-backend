@@ -1995,3 +1995,359 @@ export const getExpensesByBusiness = async (businessId, { year, week } = {}) => 
     throw new Error(error.message);
   }
 };
+
+export const createIncome = async ({ businessId, name, category, categoryId, receivedAt, amount }) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    if (bq.empty) {
+      throw new Error("Business not found");
+    }
+    const nm = String(name || "").trim();
+    if (!nm) throw new Error("name requerido");
+    const amtNum = Number(amount);
+    if (!Number.isFinite(amtNum) || amtNum < 0) {
+      throw new Error("amount debe ser un número no negativo");
+    }
+    let catIdNum = categoryId !== undefined && categoryId !== null ? Number(categoryId) : undefined;
+    let catName = category !== undefined && category !== null ? String(category).trim() : undefined;
+    if (catIdNum !== undefined && !Number.isFinite(catIdNum)) {
+      throw new Error("categoryId inválido");
+    }
+    if (catIdNum !== undefined) {
+      const cdoc = await db.collection("income-categories").doc(String(catIdNum)).get();
+      if (!cdoc.exists) throw new Error("Categoría no encontrada");
+      const cdata = cdoc.data();
+      if (Number(cdata.businessId) !== bizIdNum) throw new Error("Categoría no pertenece al negocio");
+      catName = cdata.name ?? (catName || "");
+    }
+    const normalizeDate = (s) => {
+      const str = String(s || "").trim();
+      const m1 = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(str);
+      if (m1) {
+        const dd = Number(m1[1]);
+        const mm = Number(m1[2]);
+        const yyyy = Number(m1[3]);
+        const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
+        const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+        return { date: dt, iso, display: `${m1[1]}/${m1[2]}/${m1[3]}` };
+      }
+      const m2 = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(str);
+      if (m2) {
+        const yyyy = Number(m2[1]);
+        const mm = Number(m2[2]);
+        const dd = Number(m2[3]);
+        const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
+        const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+        return { date: dt, iso, display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}` };
+      }
+      throw new Error("receivedAt debe tener formato dd/MM/YYYY o YYYY-MM-DD");
+    };
+    const d = normalizeDate(receivedAt);
+    const calcISOWeek = (date) => {
+      const tmp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+      const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      const isoYear = tmp.getUTCFullYear();
+      return { isoYear, isoWeek: weekNo };
+    };
+    const { isoYear, isoWeek } = calcISOWeek(d.date);
+    const newId = await getNextId("incomeId");
+    const ref = db.collection("incomes").doc(String(newId));
+    const doc = {
+      id: newId,
+      businessId: bizIdNum,
+      name: nm,
+      categoryId: catIdNum ?? null,
+      categoryName: catName ?? "",
+      amount: amtNum,
+      receivedAt: d.display,
+      receivedAtISO: d.iso,
+      receivedAtTimestamp: admin.firestore.Timestamp.fromDate(new Date(d.date.getTime())),
+      year: Number(d.display.slice(6, 10)),
+      month: Number(d.display.slice(3, 5)),
+      isoYear,
+      isoWeek,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await ref.set(doc);
+    return {
+      id: newId,
+      businessId: bizIdNum,
+      name: nm,
+      categoryId: doc.categoryId,
+      categoryName: doc.categoryName,
+      amount: amtNum,
+      receivedAt: doc.receivedAt,
+      receivedAtISO: doc.receivedAtISO,
+      isoYear,
+      isoWeek,
+    };
+  } catch (error) {
+    console.error("Firestore error creando ingreso:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getIncomesByBusiness = async (businessId, { year, week } = {}) => {
+  try {
+    const bizIdNum = Number(businessId);
+    let q = db.collection("incomes").where("businessId", "==", bizIdNum);
+    const snap = await q.get();
+    const list = snap.docs.map((d) => {
+      const data = d.data() || {};
+      return {
+        id: data.id ?? Number(d.id),
+        businessId: bizIdNum,
+        name: data.name ?? "",
+        categoryId: data.categoryId ?? null,
+        categoryName: data.categoryName ?? "",
+        amount: data.amount ?? 0,
+        receivedAt: data.receivedAt ?? null,
+        receivedAtISO: data.receivedAtISO ?? null,
+        isoYear: data.isoYear ?? null,
+        isoWeek: data.isoWeek ?? null,
+        year: data.year ?? null,
+        month: data.month ?? null,
+      };
+    });
+    if (typeof year === "number" && typeof week === "number") {
+      return list.filter((e) => Number(e.isoYear) === Number(year) && Number(e.isoWeek) === Number(week));
+    }
+    if (typeof year === "number") {
+      return list.filter((e) => Number(e.year) === Number(year));
+    }
+    return list;
+  } catch (error) {
+    console.error("Firestore error listando ingresos:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateIncome = async (id, { name, category, categoryId, receivedAt, amount }) => {
+  try {
+    const idNum = Number(id);
+    if (!Number.isFinite(idNum)) {
+      throw new Error("ID inválido");
+    }
+    const docRef = db.collection("incomes").doc(String(idNum));
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      throw new Error("Ingreso no encontrado");
+    }
+    const data = docSnap.data();
+    const updates = {};
+    
+    if (name !== undefined) {
+      const nm = String(name).trim();
+      if (!nm) throw new Error("name no puede estar vacío");
+      updates.name = nm;
+    }
+    
+    if (amount !== undefined) {
+      const amtNum = Number(amount);
+      if (!Number.isFinite(amtNum) || amtNum < 0) {
+        throw new Error("amount debe ser un número no negativo");
+      }
+      updates.amount = amtNum;
+    }
+    
+    if (receivedAt !== undefined) {
+      const normalizeDate = (s) => {
+        const str = String(s || "").trim();
+        const m1 = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(str);
+        if (m1) {
+          const dd = Number(m1[1]);
+          const mm = Number(m1[2]);
+          const yyyy = Number(m1[3]);
+          const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
+          const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+          return { date: dt, iso, display: `${m1[1]}/${m1[2]}/${m1[3]}` };
+        }
+        const m2 = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(str);
+        if (m2) {
+          const yyyy = Number(m2[1]);
+          const mm = Number(m2[2]);
+          const dd = Number(m2[3]);
+          const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
+          const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+          return { date: dt, iso, display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}` };
+        }
+        throw new Error("receivedAt debe tener formato dd/MM/YYYY o YYYY-MM-DD");
+      };
+      const d = normalizeDate(receivedAt);
+      const calcISOWeek = (date) => {
+        const tmp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+        tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+        const isoYear = tmp.getUTCFullYear();
+        return { isoYear, isoWeek: weekNo };
+      };
+      const { isoYear, isoWeek } = calcISOWeek(d.date);
+      updates.receivedAt = d.display;
+      updates.receivedAtISO = d.iso;
+      updates.receivedAtTimestamp = admin.firestore.Timestamp.fromDate(new Date(d.date.getTime()));
+      updates.year = Number(d.display.slice(6, 10));
+      updates.month = Number(d.display.slice(3, 5));
+      updates.isoYear = isoYear;
+      updates.isoWeek = isoWeek;
+    }
+    
+    if (category !== undefined || categoryId !== undefined) {
+      let catIdNum = categoryId !== undefined && categoryId !== null ? Number(categoryId) : undefined;
+      let catName = category !== undefined && category !== null ? String(category).trim() : undefined;
+      
+      if (catIdNum !== undefined && !Number.isFinite(catIdNum)) {
+        throw new Error("categoryId inválido");
+      }
+      
+      if (catIdNum !== undefined) {
+        const cdoc = await db.collection("income-categories").doc(String(catIdNum)).get();
+        if (!cdoc.exists) throw new Error("Categoría no encontrada");
+        const cdata = cdoc.data();
+        if (Number(cdata.businessId) !== Number(data.businessId)) throw new Error("Categoría no pertenece al negocio");
+        catName = cdata.name ?? (catName || "");
+      }
+      
+      updates.categoryId = catIdNum ?? null;
+      updates.categoryName = catName ?? "";
+    }
+    
+    updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await docRef.update(updates);
+    
+    const updatedDoc = await docRef.get();
+    const updatedData = updatedDoc.data();
+    
+    return {
+      id: idNum,
+      businessId: updatedData.businessId,
+      name: updatedData.name,
+      categoryId: updatedData.categoryId,
+      categoryName: updatedData.categoryName,
+      amount: updatedData.amount,
+      receivedAt: updatedData.receivedAt,
+      receivedAtISO: updatedData.receivedAtISO,
+      isoYear: updatedData.isoYear,
+      isoWeek: updatedData.isoWeek,
+    };
+  } catch (error) {
+    console.error("Firestore error actualizando ingreso:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const deleteIncome = async (id) => {
+  try {
+    const idNum = Number(id);
+    if (!Number.isFinite(idNum)) {
+      throw new Error("ID inválido");
+    }
+    const docRef = db.collection("incomes").doc(String(idNum));
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      throw new Error("Ingreso no encontrado");
+    }
+    await docRef.delete();
+    return { id: idNum, deleted: true };
+  } catch (error) {
+    console.error("Firestore error eliminando ingreso:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const deleteExpense = async (id) => {
+  try {
+    const idNum = Number(id);
+    if (!Number.isFinite(idNum)) {
+      throw new Error("ID inválido");
+    }
+    const docRef = db.collection("expenses").doc(String(idNum));
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      throw new Error("Gasto no encontrado");
+    }
+    await docRef.delete();
+    return { id: idNum, deleted: true };
+  } catch (error) {
+    console.error("Firestore error eliminando gasto:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getBusinessResults = async (businessId, { startDate, endDate, year, week } = {}) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+    
+    let expenses = await getExpensesByBusiness(businessId, { year, week });
+    let incomes = await getIncomesByBusiness(businessId, { year, week });
+    
+    if (startDate || endDate) {
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+      
+      if (start && isNaN(start.getTime())) {
+        throw new Error("startDate inválido");
+      }
+      if (end && isNaN(end.getTime())) {
+        throw new Error("endDate inválido");
+      }
+      
+      expenses = expenses.filter(expense => {
+        const expenseDate = new Date(expense.paidAtISO);
+        if (start && expenseDate < start) return false;
+        if (end && expenseDate > end) return false;
+        return true;
+      });
+      
+      incomes = incomes.filter(income => {
+        const incomeDate = new Date(income.receivedAtISO);
+        if (start && incomeDate < start) return false;
+        if (end && incomeDate > end) return false;
+        return true;
+      });
+    }
+    
+    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const totalIncomes = incomes.reduce((sum, income) => sum + Number(income.amount), 0);
+    const netResult = totalIncomes - totalExpenses;
+    
+    const total = totalIncomes + totalExpenses;
+    const expensePercentage = total > 0 ? (totalExpenses / total) * 100 : 0;
+    const incomePercentage = total > 0 ? (totalIncomes / total) * 100 : 0;
+    
+    return {
+      businessId: bizIdNum,
+      filters: { startDate, endDate, year, week },
+      summary: {
+        totalExpenses,
+        totalIncomes,
+        netResult,
+        expensePercentage: Math.round(expensePercentage * 100) / 100,
+        incomePercentage: Math.round(incomePercentage * 100) / 100,
+      },
+      expenses: {
+        items: expenses,
+        count: expenses.length,
+        total: totalExpenses,
+      },
+      incomes: {
+        items: incomes,
+        count: incomes.length,
+        total: totalIncomes,
+      },
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo resultados:", error);
+    throw new Error(error.message);
+  }
+};

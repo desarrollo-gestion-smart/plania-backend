@@ -277,6 +277,98 @@ const options = {
             total: { type: "number" },
           },
         },
+        Income: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            businessId: { type: "number" },
+            name: { type: "string", example: "Venta de servicios" },
+            categoryId: { type: "number", nullable: true },
+            categoryName: { type: "string", example: "Servicios" },
+            amount: { type: "number", example: 500.0 },
+            receivedAt: { type: "string", example: "15/02/2026", description: "dd/MM/YYYY" },
+            receivedAtISO: { type: "string", example: "2026-02-15" },
+            isoYear: { type: "number", example: 2026 },
+            isoWeek: { type: "number", example: 7 },
+          },
+        },
+        CreateIncomeRequest: {
+          type: "object",
+          required: ["businessId", "name", "receivedAt", "amount"],
+          properties: {
+            businessId: { type: "number", example: 1 },
+            name: { type: "string", example: "Corte de cabello" },
+            category: { type: "string", nullable: true, example: "Servicios", description: "Nombre de la categoría (opcional si se envía categoryId)" },
+            categoryId: { type: "number", nullable: true, example: 1, description: "ID de la categoría (opcional si se envía category)" },
+            receivedAt: { type: "string", example: "15/02/2026", description: "dd/MM/YYYY o YYYY-MM-DD" },
+            amount: { type: "number", example: 50.0 },
+          },
+        },
+        UpdateIncomeRequest: {
+          type: "object",
+          properties: {
+            name: { type: "string", example: "Corte y lavado" },
+            category: { type: "string", nullable: true, example: "Servicios premium" },
+            categoryId: { type: "number", nullable: true, example: 2 },
+            receivedAt: { type: "string", example: "16/02/2026", description: "dd/MM/YYYY o YYYY-MM-DD" },
+            amount: { type: "number", example: 60.0 },
+          },
+        },
+        ListIncomesResponse: {
+          type: "object",
+          properties: {
+            incomes: { type: "array", items: { $ref: "#/components/schemas/Income" } },
+            total: { type: "number" },
+          },
+        },
+        DeleteResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            deleted: { type: "boolean" },
+          },
+        },
+        BusinessResults: {
+          type: "object",
+          properties: {
+            businessId: { type: "number" },
+            filters: {
+              type: "object",
+              properties: {
+                startDate: { type: "string", nullable: true, example: "2026-02-01" },
+                endDate: { type: "string", nullable: true, example: "2026-02-28" },
+                year: { type: "number", nullable: true, example: 2026 },
+                week: { type: "number", nullable: true, example: 7 },
+              },
+            },
+            summary: {
+              type: "object",
+              properties: {
+                totalExpenses: { type: "number", example: 1500.5 },
+                totalIncomes: { type: "number", example: 3000.0 },
+                netResult: { type: "number", example: 1499.5 },
+                expensePercentage: { type: "number", example: 33.34 },
+                incomePercentage: { type: "number", example: 66.66 },
+              },
+            },
+            expenses: {
+              type: "object",
+              properties: {
+                items: { type: "array", items: { $ref: "#/components/schemas/Expense" } },
+                count: { type: "number", example: 5 },
+                total: { type: "number", example: 1500.5 },
+              },
+            },
+            incomes: {
+              type: "object",
+              properties: {
+                items: { type: "array", items: { $ref: "#/components/schemas/Income" } },
+                count: { type: "number", example: 10 },
+                total: { type: "number", example: 3000.0 },
+              },
+            },
+          },
+        },
         Service: {
           type: "object",
           properties: {
@@ -686,6 +778,9 @@ const options = {
       { name: "Negocios", description: "Gestión de negocios (protegido)" },
       { name: "Staff", description: "Gestión de personal (protegido)" },
       { name: "Citas", description: "Gestión de citas (protegido)" },
+      { name: "Gastos", description: "Gestión de gastos (protegido)" },
+      { name: "Ingresos", description: "Gestión de ingresos (protegido)" },
+      { name: "Resultados", description: "Reportes financieros (protegido)" },
       { name: "Uploads", description: "Subida de imágenes" },
     ],
     paths: {
@@ -1589,6 +1684,115 @@ const options = {
             200: { description: "Imagen subida", content: { "application/json": { schema: { type: "object", properties: { url: { type: "string" }, message: { type: "string" } } } } } },
             400: { description: "Archivo o userId faltante" },
             404: { description: "Usuario no encontrado" },
+          },
+        },
+      },
+
+      // ═══════════════════════════════════════════════════════════
+      // INGRESOS
+      // ═══════════════════════════════════════════════════════════
+      "/incomes": {
+        post: {
+          tags: ["Ingresos"],
+          summary: "Crear ingreso",
+          description: "Crea un nuevo ingreso para el negocio.",
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateIncomeRequest" } } } },
+          responses: {
+            201: { description: "Ingreso creado", content: { "application/json": { schema: { type: "object", properties: { income: { $ref: "#/components/schemas/Income" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+          },
+        },
+      },
+      "/incomes/{businessId}": {
+        get: {
+          tags: ["Ingresos"],
+          summary: "Listar ingresos por negocio",
+          description: "Obtiene todos los ingresos de un negocio con filtros opcionales.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "number" }, description: "ID del negocio" },
+            { name: "year", in: "query", schema: { type: "number" }, description: "Filtrar por año" },
+            { name: "week", in: "query", schema: { type: "number" }, description: "Filtrar por semana (junto con year)" },
+          ],
+          responses: {
+            200: { description: "Lista de ingresos", content: { "application/json": { schema: { $ref: "#/components/schemas/ListIncomesResponse" } } } },
+            401: { description: "No autenticado" },
+          },
+        },
+      },
+      "/incomes/{id}": {
+        put: {
+          tags: ["Ingresos"],
+          summary: "Actualizar ingreso",
+          description: "Actualiza los datos de un ingreso existente.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "number" }, description: "ID del ingreso" }],
+          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateIncomeRequest" } } } },
+          responses: {
+            200: { description: "Ingreso actualizado", content: { "application/json": { schema: { type: "object", properties: { income: { $ref: "#/components/schemas/Income" } } } } } },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Ingreso no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        delete: {
+          tags: ["Ingresos"],
+          summary: "Eliminar ingreso",
+          description: "Elimina un ingreso permanentemente.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "number" }, description: "ID del ingreso" }],
+          responses: {
+            200: { description: "Ingreso eliminado", content: { "application/json": { schema: { $ref: "#/components/schemas/DeleteResponse" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Ingreso no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+
+      // ═══════════════════════════════════════════════════════════
+      // GASTOS (ELIMINACIÓN)
+      // ═══════════════════════════════════════════════════════════
+      "/expenses/{id}": {
+        delete: {
+          tags: ["Gastos"],
+          summary: "Eliminar gasto",
+          description: "Elimina un gasto permanentemente.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "number" }, description: "ID del gasto" }],
+          responses: {
+            200: { description: "Gasto eliminado", content: { "application/json": { schema: { $ref: "#/components/schemas/DeleteResponse" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Gasto no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+
+      // ═══════════════════════════════════════════════════════════
+      // RESULTADOS
+      // ═══════════════════════════════════════════════════════════
+      "/results/{businessId}": {
+        get: {
+          tags: ["Resultados"],
+          summary: "Obtener resultados financieros",
+          description: "Retorna un resumen financiero con gastos, ingresos y porcentajes.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "number" }, description: "ID del negocio" },
+            { name: "startDate", in: "query", schema: { type: "string", format: "date" }, description: "Fecha de inicio (YYYY-MM-DD)" },
+            { name: "endDate", in: "query", schema: { type: "string", format: "date" }, description: "Fecha de fin (YYYY-MM-DD)" },
+            { name: "year", in: "query", schema: { type: "number" }, description: "Filtrar por año" },
+            { name: "week", in: "query", schema: { type: "number" }, description: "Filtrar por semana (junto con year)" },
+          ],
+          responses: {
+            200: { description: "Resultados financieros", content: { "application/json": { schema: { $ref: "#/components/schemas/BusinessResults" } } } },
+            400: { description: "Parámetros inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
           },
         },
       },
