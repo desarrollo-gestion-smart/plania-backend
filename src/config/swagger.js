@@ -294,12 +294,11 @@ const options = {
         },
         CreateIncomeRequest: {
           type: "object",
-          required: ["businessId", "name", "receivedAt", "amount"],
+          required: ["businessId", "name", "categoryId", "receivedAt", "amount"],
           properties: {
             businessId: { type: "number", example: 1 },
             name: { type: "string", example: "Corte de cabello" },
-            category: { type: "string", nullable: true, example: "Servicios", description: "Nombre de la categoría (opcional si se envía categoryId)" },
-            categoryId: { type: "number", nullable: true, example: 1, description: "ID de la categoría (opcional si se envía category)" },
+            categoryId: { type: "number", example: 2, description: "ID de la categoría: 1=Venta de productos, 2=Venta de servicios" },
             receivedAt: { type: "string", example: "15/02/2026", description: "dd/MM/YYYY o YYYY-MM-DD" },
             amount: { type: "number", example: 50.0 },
           },
@@ -308,8 +307,7 @@ const options = {
           type: "object",
           properties: {
             name: { type: "string", example: "Corte y lavado" },
-            category: { type: "string", nullable: true, example: "Servicios premium" },
-            categoryId: { type: "number", nullable: true, example: 2 },
+            categoryId: { type: "number", nullable: true, example: 2, description: "ID de la categoría: 1=Venta de productos, 2=Venta de servicios" },
             receivedAt: { type: "string", example: "16/02/2026", description: "dd/MM/YYYY o YYYY-MM-DD" },
             amount: { type: "number", example: 60.0 },
           },
@@ -326,6 +324,20 @@ const options = {
           properties: {
             id: { type: "number" },
             deleted: { type: "boolean" },
+          },
+        },
+        IncomeCategory: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            name: { type: "string", example: "Venta de productos" },
+          },
+        },
+        ListIncomeCategoriesResponse: {
+          type: "object",
+          properties: {
+            categories: { type: "array", items: { $ref: "#/components/schemas/IncomeCategory" } },
+            total: { type: "number", example: 2 },
           },
         },
         BusinessResults: {
@@ -1716,9 +1728,22 @@ const options = {
             { name: "businessId", in: "path", required: true, schema: { type: "number" }, description: "ID del negocio" },
             { name: "year", in: "query", schema: { type: "number" }, description: "Filtrar por año" },
             { name: "week", in: "query", schema: { type: "number" }, description: "Filtrar por semana (junto con year)" },
+            { name: "categoryId", in: "query", schema: { type: "number" }, description: "Filtrar por categoría: 1=Productos, 2=Servicios" },
           ],
           responses: {
             200: { description: "Lista de ingresos", content: { "application/json": { schema: { $ref: "#/components/schemas/ListIncomesResponse" } } } },
+            401: { description: "No autenticado" },
+          },
+        },
+      },
+      "/income-categories": {
+        get: {
+          tags: ["Ingresos"],
+          summary: "Listar categorías de ingresos",
+          description: "Obtiene todas las categorías predefinidas para ingresos.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: "Lista de categorías de ingresos", content: { "application/json": { schema: { $ref: "#/components/schemas/ListIncomeCategoriesResponse" } } } },
             401: { description: "No autenticado" },
           },
         },

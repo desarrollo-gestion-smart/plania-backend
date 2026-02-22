@@ -1872,7 +1872,7 @@ export const createExpense = async ({ businessId, name, category, categoryId, pa
     }
     const nm = String(name || "").trim();
     if (!nm) throw new Error("name requerido");
-    const amtNum = Number(amount);
+    const amtNum = parseFloat(amount);
     if (!Number.isFinite(amtNum) || amtNum < 0) {
       throw new Error("amount debe ser un número no negativo");
     }
@@ -1996,7 +1996,28 @@ export const getExpensesByBusiness = async (businessId, { year, week } = {}) => 
   }
 };
 
-export const createIncome = async ({ businessId, name, category, categoryId, receivedAt, amount }) => {
+export const getIncomeCategoryById = (categoryId) => {
+  const categories = {
+    1: { id: 1, name: "Venta de productos" },
+    2: { id: 2, name: "Venta de servicios" }
+  };
+  
+  const category = categories[categoryId];
+  if (!category) {
+    throw new Error("Categoría de ingreso inválida. Solo se permite 1 (Venta de productos) o 2 (Venta de servicios)");
+  }
+  
+  return category;
+};
+
+export const getIncomeCategories = () => {
+  return [
+    { id: 1, name: "Venta de productos" },
+    { id: 2, name: "Venta de servicios" }
+  ];
+};
+
+export const createIncome = async ({ businessId, name, categoryId, receivedAt, amount }) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
@@ -2008,22 +2029,19 @@ export const createIncome = async ({ businessId, name, category, categoryId, rec
     }
     const nm = String(name || "").trim();
     if (!nm) throw new Error("name requerido");
-    const amtNum = Number(amount);
+    
+    const catIdNum = Number(categoryId);
+    if (!Number.isFinite(catIdNum)) {
+      throw new Error("categoryId inválido");
+    }
+    
+    const category = getIncomeCategoryById(catIdNum);
+    
+    const amtNum = parseFloat(amount);
     if (!Number.isFinite(amtNum) || amtNum < 0) {
       throw new Error("amount debe ser un número no negativo");
     }
-    let catIdNum = categoryId !== undefined && categoryId !== null ? Number(categoryId) : undefined;
-    let catName = category !== undefined && category !== null ? String(category).trim() : undefined;
-    if (catIdNum !== undefined && !Number.isFinite(catIdNum)) {
-      throw new Error("categoryId inválido");
-    }
-    if (catIdNum !== undefined) {
-      const cdoc = await db.collection("income-categories").doc(String(catIdNum)).get();
-      if (!cdoc.exists) throw new Error("Categoría no encontrada");
-      const cdata = cdoc.data();
-      if (Number(cdata.businessId) !== bizIdNum) throw new Error("Categoría no pertenece al negocio");
-      catName = cdata.name ?? (catName || "");
-    }
+    
     const normalizeDate = (s) => {
       const str = String(s || "").trim();
       const m1 = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(str);
@@ -2062,8 +2080,8 @@ export const createIncome = async ({ businessId, name, category, categoryId, rec
       id: newId,
       businessId: bizIdNum,
       name: nm,
-      categoryId: catIdNum ?? null,
-      categoryName: catName ?? "",
+      categoryId: category.id,
+      categoryName: category.name,
       amount: amtNum,
       receivedAt: d.display,
       receivedAtISO: d.iso,
@@ -2150,7 +2168,7 @@ export const updateIncome = async (id, { name, category, categoryId, receivedAt,
     }
     
     if (amount !== undefined) {
-      const amtNum = Number(amount);
+      const amtNum = parseFloat(amount);
       if (!Number.isFinite(amtNum) || amtNum < 0) {
         throw new Error("amount debe ser un número no negativo");
       }

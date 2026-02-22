@@ -1,16 +1,16 @@
-import { createIncome, getIncomesByBusiness, updateIncome, deleteIncome, getBusinessResults, deleteExpense } from "../services/firestoreService.js";
+import { createIncome, getIncomesByBusiness, updateIncome, deleteIncome, getBusinessResults, deleteExpense, getIncomeCategories } from "../services/firestoreService.js";
 
 export const createIncomeController = async (req, res) => {
   try {
-    const { businessId, name, category, categoryId, receivedAt, amount } = req.body || {};
-    if (!businessId || !name || (!category && !categoryId) || !receivedAt || amount === undefined) {
-      return res.status(400).json({ error: "Campos requeridos: businessId, name, category o categoryId, receivedAt, amount" });
+    const { businessId, name, categoryId, receivedAt, amount } = req.body || {};
+    if (!businessId || !name || !categoryId || !receivedAt || amount === undefined) {
+      return res.status(400).json({ error: "Campos requeridos: businessId, name, categoryId (1=Productos, 2=Servicios), receivedAt, amount" });
     }
-    const income = await createIncome({ businessId, name, category, categoryId, receivedAt, amount });
+    const income = await createIncome({ businessId, name, categoryId, receivedAt, amount });
     return res.status(201).json({ income });
   } catch (error) {
     const msg = error?.message || "Error creando ingreso";
-    const code = /inválido|not found|requeridos|amount|receivedAt|category/i.test(msg) ? 400 : 500;
+    const code = /inválido|not found|requeridos|amount|receivedAt|categoryId/i.test(msg) ? 400 : 500;
     return res.status(code).json({ error: msg });
   }
 };
@@ -18,13 +18,20 @@ export const createIncomeController = async (req, res) => {
 export const listIncomesController = async (req, res) => {
   try {
     const { businessId } = req.params;
-    const { year, week } = req.query || {};
+    const { year, week, categoryId } = req.query || {};
     if (!businessId) {
       return res.status(400).json({ error: "businessId es requerido" });
     }
     const y = year !== undefined ? Number(year) : undefined;
     const w = week !== undefined ? Number(week) : undefined;
-    const incomes = await getIncomesByBusiness(businessId, { year: y, week: w });
+    const catId = categoryId !== undefined ? Number(categoryId) : undefined;
+    
+    let incomes = await getIncomesByBusiness(businessId, { year: y, week: w });
+    
+    if (catId !== undefined) {
+      incomes = incomes.filter(income => income.categoryId === catId);
+    }
+    
     return res.status(200).json({ incomes, total: incomes.length });
   } catch (error) {
     const msg = error?.message || "Error listando ingresos";
@@ -93,5 +100,15 @@ export const getResultsController = async (req, res) => {
     const msg = error?.message || "Error obteniendo resultados";
     const code = /inválido|requerido/i.test(msg) ? 400 : 500;
     return res.status(code).json({ error: msg });
+  }
+};
+
+export const listIncomeCategoriesController = async (req, res) => {
+  try {
+    const categories = getIncomeCategories();
+    return res.status(200).json({ categories, total: categories.length });
+  } catch (error) {
+    const msg = error?.message || "Error obteniendo categorías de ingresos";
+    return res.status(500).json({ error: msg });
   }
 };
