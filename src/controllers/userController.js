@@ -522,12 +522,20 @@ export const updateBusinessPoliciesController = async (req, res) => {
       return res.status(400).json({ error: "businessId es requerido" });
     }
     const requester = req.user || {};
-    const requesterRole = requester.role;
-    const requesterId = requester.id;
+    const requesterRole = requester;
+    const requesterId = requester.userId;
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
       return res.status(400).json({ error: "businessId debe ser numérico" });
     }
+    console.log({
+  requesterRole,
+  requesterId: requesterId,
+  requesterIdType: typeof requesterId,
+  businessIdEnUrl: businessId,
+  bizIdNum,
+  sonIguales: Number(requesterId) === bizIdNum
+});
     if (requesterRole === "business") {
       if (!requesterId || Number(requesterId) !== bizIdNum) {
         return res.status(403).json({ error: "No puedes actualizar políticas de otro negocio" });

@@ -175,7 +175,7 @@ export const listAppointmentsByBusiness = async (req, res) => {
     const bizIdNum = Number(businessId);
     const requester = req.user || {};
     const requesterRole = requester.role;
-    const requesterId = requester.id;
+    const requesterId = requester.userId;
 
     if (!Number.isFinite(bizIdNum)) {
       return res.status(400).json({ error: "businessId debe ser numérico" });
