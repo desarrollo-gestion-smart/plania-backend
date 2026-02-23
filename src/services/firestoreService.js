@@ -11,7 +11,7 @@ const DEFAULT_STAFF_PERMISSIONS = {
 };
 
 const hashCode = (code) => {
-  return crypto.createHash('sha256').update(code).digest('hex');
+  return crypto.createHash("sha256").update(code).digest("hex");
 };
 
 const getNextId = async (counterName) => {
@@ -27,21 +27,21 @@ const getNextId = async (counterName) => {
 
 export const createUser = async (nombre, numero, verificationCode) => {
   try {
-    console.log('Attempting to create user:', { nombre, numero });
+    console.log("Attempting to create user:", { nombre, numero });
     const hashedCode = hashCode(verificationCode);
-    const newId = await getNextId('userId');
+    const newId = await getNextId("userId");
     const userRef = db.collection("users").doc(newId.toString());
     await userRef.set({
       id: newId,
       nombre,
       numero,
       verificationCode: hashedCode,
-      status: 'pending_verification',
+      status: "pending_verification",
       verificationAttempts: 0,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log('User created successfully');
-    return { id: newId, nombre, numero, status: 'pending_verification' };
+    console.log("User created successfully");
+    return { id: newId, nombre, numero, status: "pending_verification" };
   } catch (error) {
     console.error("Firestore error:", error);
     throw new Error(`Error creating user: ${error.message}`);
@@ -50,13 +50,13 @@ export const createUser = async (nombre, numero, verificationCode) => {
 
 export const updateUserAvatar = async (userId, avatarUrl) => {
   try {
-    console.log('Updating user avatar:', { userId, avatarUrl });
+    console.log("Updating user avatar:", { userId, avatarUrl });
     const userRef = db.collection("users").doc(userId);
     await userRef.update({
       avatar: avatarUrl,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log('User avatar updated successfully');
+    console.log("User avatar updated successfully");
     return { id: userId, avatar: avatarUrl };
   } catch (error) {
     console.error("Firestore error updating avatar:", error);
@@ -66,13 +66,13 @@ export const updateUserAvatar = async (userId, avatarUrl) => {
 
 export const updateBusinessAvatar = async (businessId, avatarUrl) => {
   try {
-    console.log('Updating business avatar:', { businessId, avatarUrl });
+    console.log("Updating business avatar:", { businessId, avatarUrl });
     const userRef = db.collection("user-business").doc(businessId);
     await userRef.update({
       avatar: avatarUrl,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log('Business avatar updated successfully');
+    console.log("Business avatar updated successfully");
     return { id: businessId, avatar: avatarUrl };
   } catch (error) {
     console.error("Firestore error updating business avatar:", error);
@@ -82,13 +82,13 @@ export const updateBusinessAvatar = async (businessId, avatarUrl) => {
 
 export const updateBusinessBanner = async (businessId, bannerUrl) => {
   try {
-    console.log('Updating business banner:', { businessId, bannerUrl });
+    console.log("Updating business banner:", { businessId, bannerUrl });
     const userRef = db.collection("user-business").doc(businessId);
     await userRef.update({
       banner: bannerUrl,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log('Business banner updated successfully');
+    console.log("Business banner updated successfully");
     return { id: businessId, banner: bannerUrl };
   } catch (error) {
     console.error("Firestore error updating business banner:", error);
@@ -98,13 +98,13 @@ export const updateBusinessBanner = async (businessId, bannerUrl) => {
 
 export const updateStaffAvatar = async (staffId, avatarUrl) => {
   try {
-    console.log('Updating staff avatar:', { staffId, avatarUrl });
+    console.log("Updating staff avatar:", { staffId, avatarUrl });
     const staffRef = db.collection("staff").doc(staffId);
     await staffRef.update({
       avatar: avatarUrl,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log('Staff avatar updated successfully');
+    console.log("Staff avatar updated successfully");
     return { id: staffId, avatar: avatarUrl };
   } catch (error) {
     console.error("Firestore error updating staff avatar:", error);
@@ -114,20 +114,22 @@ export const updateStaffAvatar = async (staffId, avatarUrl) => {
 
 export const verifyUserCode = async (userId, code) => {
   try {
-    console.log('Verifying user code:', { userId });
+    console.log("Verifying user code:", { userId });
     const hashedCode = hashCode(code);
     const userRef = db.collection("users").doc(userId);
     const userDoc = await userRef.get();
     if (!userDoc.exists) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
     const userData = userDoc.data();
     const now = admin.firestore.Timestamp.now().toMillis();
     const attempts = userData.verificationAttempts || 0;
-    const lastAttempt = userData.lastVerificationAttempt ? userData.lastVerificationAttempt.toMillis() : 0;
+    const lastAttempt = userData.lastVerificationAttempt
+      ? userData.lastVerificationAttempt.toMillis()
+      : 0;
     const oneHour = 60 * 60 * 1000;
 
-    if (attempts >= 3 && (now - lastAttempt) < oneHour) {
+    if (attempts >= 3 && now - lastAttempt < oneHour) {
       const remainingTime = Math.ceil((oneHour - (now - lastAttempt)) / 60000); // minutes
       throw new Error(`Demasiados intentos. Espera ${remainingTime} minutos.`);
     }
@@ -139,18 +141,18 @@ export const verifyUserCode = async (userId, code) => {
     });
 
     if (userData.verificationCode !== hashedCode) {
-      throw new Error('Invalid verification code');
+      throw new Error("Invalid verification code");
     }
 
     // Success, reset attempts and verify
     await userRef.update({
-      status: 'verified',
+      status: "verified",
       verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
       verificationAttempts: 0,
       // Optionally remove verificationCode
     });
-    console.log('User verified successfully');
-    return { id: userId, status: 'verified' };
+    console.log("User verified successfully");
+    return { id: userId, status: "verified" };
   } catch (error) {
     console.error("Firestore error verifying code:", error);
     throw new Error(error.message);
@@ -163,51 +165,92 @@ const getNextStaffId = async () => {
   return await db.runTransaction(async (t) => {
     const snapshot = await t.get(counterRef);
     if (!snapshot.exists) {
-      t.set(counterRef, { seq: 1, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      t.set(counterRef, {
+        seq: 1,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
       return 1;
     }
-    const current = typeof snapshot.data().seq === "number" ? snapshot.data().seq : 0;
+    const current =
+      typeof snapshot.data().seq === "number" ? snapshot.data().seq : 0;
     const next = current + 1;
-    t.update(counterRef, { seq: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    t.update(counterRef, {
+      seq: next,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     return next;
   });
 };
 
-export const addStaff = async (businessId, nombre, numero, password, avatar = null, apellido = '', staffId = null, options = {}) => {
+export const addStaff = async (
+  businessId,
+  nombre,
+  numero,
+  password,
+  avatar = null,
+  apellido = "",
+  staffId = null,
+  options = {},
+) => {
   try {
-    console.log('Adding staff:', { businessId, nombre, apellido, numero, staffId });
+    console.log("Adding staff:", {
+      businessId,
+      nombre,
+      apellido,
+      numero,
+      staffId,
+    });
 
     // Check if phone already exists in staff (skip if empty)
-    if (typeof numero === 'string' ? numero.trim() !== '' : !!numero) {
-      const existingPhone = await db.collection("staff").where("numero", "==", numero).get();
+    if (typeof numero === "string" ? numero.trim() !== "" : !!numero) {
+      const existingPhone = await db
+        .collection("staff")
+        .where("numero", "==", numero)
+        .get();
       if (!existingPhone.empty) {
-        throw new Error("El número de teléfono ya está registrado para un miembro del personal");
+        throw new Error(
+          "El número de teléfono ya está registrado para un miembro del personal",
+        );
       }
     }
 
     // Hash password only if provided and non-empty
     let hashedPassword = null;
-    const hasPassword = typeof password === 'string' ? password.trim() !== '' : !!password;
+    const hasPassword =
+      typeof password === "string" ? password.trim() !== "" : !!password;
     if (hasPassword) {
       const saltRounds = 10;
       hashedPassword = await bcrypt.hash(password, saltRounds);
     }
 
-    const finalStaffId = staffId ? String(staffId) : String(await getNextStaffId());
+    const finalStaffId = staffId
+      ? String(staffId)
+      : String(await getNextStaffId());
     const staffRef = db.collection("staff").doc(finalStaffId);
-    const rawPermissions = options && typeof options.permissions === "object" && options.permissions !== null
-      ? options.permissions
-      : {};
+    const rawPermissions =
+      options &&
+      typeof options.permissions === "object" &&
+      options.permissions !== null
+        ? options.permissions
+        : {};
     const permissions = {
-      manualAppointments: Boolean(rawPermissions.manualAppointments ?? DEFAULT_STAFF_PERMISSIONS.manualAppointments),
-      manualBlocks: Boolean(rawPermissions.manualBlocks ?? DEFAULT_STAFF_PERMISSIONS.manualBlocks),
-      viewClientPhone: Boolean(rawPermissions.viewClientPhone ?? DEFAULT_STAFF_PERMISSIONS.viewClientPhone),
+      manualAppointments: Boolean(
+        rawPermissions.manualAppointments ??
+        DEFAULT_STAFF_PERMISSIONS.manualAppointments,
+      ),
+      manualBlocks: Boolean(
+        rawPermissions.manualBlocks ?? DEFAULT_STAFF_PERMISSIONS.manualBlocks,
+      ),
+      viewClientPhone: Boolean(
+        rawPermissions.viewClientPhone ??
+        DEFAULT_STAFF_PERMISSIONS.viewClientPhone,
+      ),
     };
     await staffRef.set({
       id: staffRef.id,
       businessId,
       nombre,
-      apellido: typeof apellido === 'string' ? apellido : '',
+      apellido: typeof apellido === "string" ? apellido : "",
       numero,
       password: hashedPassword,
       avatar: avatar || null,
@@ -215,15 +258,16 @@ export const addStaff = async (businessId, nombre, numero, password, avatar = nu
       staffdates: [],
       staffAppoinments: [],
       staffAppointmentsHour: [],
+      mostSoldServiceType: null,
       permissions,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log('Staff added successfully with id:', staffRef.id);
+    console.log("Staff added successfully with id:", staffRef.id);
     return {
       id: staffRef.id,
       businessId,
       nombre,
-      apellido: typeof apellido === 'string' ? apellido : '',
+      apellido: typeof apellido === "string" ? apellido : "",
       numero,
       avatar: avatar || null,
       permissions,
@@ -236,33 +280,51 @@ export const addStaff = async (businessId, nombre, numero, password, avatar = nu
 
 export const getStaffByBusiness = async (businessId) => {
   try {
-    console.log('Getting staff for business:', businessId);
-    const staffQuery = await db.collection("staff").where("businessId", "==", businessId).get();
-    const staff = staffQuery.docs.map(doc => {
+    console.log("Getting staff for business:", businessId);
+    const staffQuery = await db
+      .collection("staff")
+      .where("businessId", "==", businessId)
+      .get();
+    const staff = staffQuery.docs.map((doc) => {
       const data = doc.data();
       const rawPermissions = data.permissions || {};
       return {
-        apellido: typeof data.apellido === 'string' ? data.apellido : '',
+        apellido: typeof data.apellido === "string" ? data.apellido : "",
         avatar: data.avatar ?? null,
         businessId: data.businessId,
         createdAt: data.createdAt ?? null,
         id: doc.id,
-        nombre: data.nombre ?? '',
-        numero: data.numero ?? '',
+        nombre: data.nombre ?? "",
+        numero: data.numero ?? "",
         password: data.password ?? null,
         updatedAt: data.updatedAt ?? null,
-        staffServices: Array.isArray(data.staffServices) ? data.staffServices : [],
+        staffServices: Array.isArray(data.staffServices)
+          ? data.staffServices
+          : [],
         staffdates: Array.isArray(data.staffdates) ? data.staffdates : [],
-        staffAppoinments: Array.isArray(data.staffAppoinments) ? data.staffAppoinments : [],
-        staffAppointmentsHour: Array.isArray(data.staffAppointmentsHour) ? data.staffAppointmentsHour : [],
+        staffAppoinments: Array.isArray(data.staffAppoinments)
+          ? data.staffAppoinments
+          : [],
+        staffAppointmentsHour: Array.isArray(data.staffAppointmentsHour)
+          ? data.staffAppointmentsHour
+          : [],
         permissions: {
-          manualAppointments: Boolean(rawPermissions.manualAppointments ?? DEFAULT_STAFF_PERMISSIONS.manualAppointments),
-          manualBlocks: Boolean(rawPermissions.manualBlocks ?? DEFAULT_STAFF_PERMISSIONS.manualBlocks),
-          viewClientPhone: Boolean(rawPermissions.viewClientPhone ?? DEFAULT_STAFF_PERMISSIONS.viewClientPhone),
+          manualAppointments: Boolean(
+            rawPermissions.manualAppointments ??
+            DEFAULT_STAFF_PERMISSIONS.manualAppointments,
+          ),
+          manualBlocks: Boolean(
+            rawPermissions.manualBlocks ??
+            DEFAULT_STAFF_PERMISSIONS.manualBlocks,
+          ),
+          viewClientPhone: Boolean(
+            rawPermissions.viewClientPhone ??
+            DEFAULT_STAFF_PERMISSIONS.viewClientPhone,
+          ),
         },
       };
     });
-    console.log('Staff retrieved successfully');
+    console.log("Staff retrieved successfully");
     return staff;
   } catch (error) {
     console.error("Firestore error getting staff:", error);
@@ -272,8 +334,11 @@ export const getStaffByBusiness = async (businessId) => {
 
 export const loginStaff = async (numero, password) => {
   try {
-    console.log('Logging in staff:', { numero });
-    const staffQuery = await db.collection("staff").where("numero", "==", numero).get();
+    console.log("Logging in staff:", { numero });
+    const staffQuery = await db
+      .collection("staff")
+      .where("numero", "==", numero)
+      .get();
     if (staffQuery.empty) {
       throw new Error("Credenciales incorrectas");
     }
@@ -281,7 +346,11 @@ export const loginStaff = async (numero, password) => {
     const staffData = staffDoc.data();
 
     // If staff has no password set or it's not a valid bcrypt hash, fail
-    if (!staffData.password || typeof staffData.password !== 'string' || !staffData.password.startsWith('$2')) {
+    if (
+      !staffData.password ||
+      typeof staffData.password !== "string" ||
+      !staffData.password.startsWith("$2")
+    ) {
       throw new Error("Credenciales incorrectas");
     }
 
@@ -290,8 +359,15 @@ export const loginStaff = async (numero, password) => {
       throw new Error("Credenciales incorrectas");
     }
 
-    console.log('Staff logged in successfully');
-    return { id: staffData.id, businessId: staffData.businessId, nombre: staffData.nombre, apellido: staffData.apellido || '', numero: staffData.numero, avatar: staffData.avatar };
+    console.log("Staff logged in successfully");
+    return {
+      id: staffData.id,
+      businessId: staffData.businessId,
+      nombre: staffData.nombre,
+      apellido: staffData.apellido || "",
+      numero: staffData.numero,
+      avatar: staffData.avatar,
+    };
   } catch (error) {
     console.error("Firestore error logging in staff:", error);
     throw new Error(error.message);
@@ -300,8 +376,9 @@ export const loginStaff = async (numero, password) => {
 
 export const findBusinessUser = async (nombre, numero) => {
   try {
-    console.log('Finding business user:', { nombre, numero });
-    const userQuery = await db.collection("user-business")
+    console.log("Finding business user:", { nombre, numero });
+    const userQuery = await db
+      .collection("user-business")
       .where("nombre", "==", nombre)
       .where("numero", "==", numero)
       .get();
@@ -312,8 +389,15 @@ export const findBusinessUser = async (nombre, numero) => {
 
     const userDoc = userQuery.docs[0];
     const userData = userDoc.data();
-    console.log('Business user found');
-    return { id: userData.id, nombre: userData.nombre, correo: userData.correo, numero: userData.numero, avatar: userData.avatar, banner: userData.banner };
+    console.log("Business user found");
+    return {
+      id: userData.id,
+      nombre: userData.nombre,
+      correo: userData.correo,
+      numero: userData.numero,
+      avatar: userData.avatar,
+      banner: userData.banner,
+    };
   } catch (error) {
     console.error("Firestore error finding business user:", error);
     throw new Error(error.message);
@@ -323,7 +407,8 @@ export const findBusinessUser = async (nombre, numero) => {
 /** Busca un usuario de la app (colección users) por número. Si hay varios, devuelve el más reciente. */
 export const getAppUserByNumero = async (numero) => {
   const numStr = String(numero).trim();
-  const userQuery = await db.collection("users")
+  const userQuery = await db
+    .collection("users")
     .where("numero", "==", numStr)
     .get();
   if (userQuery.empty) {
@@ -348,15 +433,28 @@ export const getAppUserByNumero = async (numero) => {
 export const getBusinessUserByNumero = async (numero) => {
   try {
     const numStr = String(numero).trim();
-    const userQuery = await db.collection("user-business")
+    const userQuery = await db
+      .collection("user-business")
       .where("numero", "==", numStr)
       .get();
     if (userQuery.empty) {
       throw new Error("Credenciales incorrectas");
     }
     const userData = userQuery.docs[0].data();
-    const setupFlag = typeof userData.isInitialSetupComplete === 'string' ? userData.isInitialSetupComplete.toLowerCase() === 'true' : Boolean(userData.isInitialSetupComplete);
-    return { id: userData.id, nombre: userData.nombre, correo: userData.correo, numero: userData.numero, avatar: userData.avatar, banner: userData.banner, isInitialSetupComplete: setupFlag, type: "business" };
+    const setupFlag =
+      typeof userData.isInitialSetupComplete === "string"
+        ? userData.isInitialSetupComplete.toLowerCase() === "true"
+        : Boolean(userData.isInitialSetupComplete);
+    return {
+      id: userData.id,
+      nombre: userData.nombre,
+      correo: userData.correo,
+      numero: userData.numero,
+      avatar: userData.avatar,
+      banner: userData.banner,
+      isInitialSetupComplete: setupFlag,
+      type: "business",
+    };
   } catch (error) {
     console.error("Firestore error getting business user by numero:", error);
     throw new Error(error.message);
@@ -365,12 +463,13 @@ export const getBusinessUserByNumero = async (numero) => {
 
 export const loginBusinessUser = async (numero, password) => {
   try {
-    console.log('Logging in business user:', { numero });
+    console.log("Logging in business user:", { numero });
     const numStr = String(numero).trim();
-    const userQuery = await db.collection("user-business")
+    const userQuery = await db
+      .collection("user-business")
       .where("numero", "==", numStr)
       .get();
-    console.log('User query docs count:', userQuery.docs.length);
+    console.log("User query docs count:", userQuery.docs.length);
     if (userQuery.empty) {
       throw new Error("Este número no está registrado");
     }
@@ -380,9 +479,20 @@ export const loginBusinessUser = async (numero, password) => {
       const userData = userDoc.data();
       const isPasswordValid = await bcrypt.compare(password, userData.password);
       if (isPasswordValid) {
-        console.log('Business user logged in successfully');
-        const setupFlag = typeof userData.isInitialSetupComplete === 'string' ? userData.isInitialSetupComplete.toLowerCase() === 'true' : Boolean(userData.isInitialSetupComplete);
-        return { id: userData.id, nombre: userData.nombre, correo: userData.correo, numero: userData.numero, avatar: userData.avatar, banner: userData.banner, isInitialSetupComplete: setupFlag };
+        console.log("Business user logged in successfully");
+        const setupFlag =
+          typeof userData.isInitialSetupComplete === "string"
+            ? userData.isInitialSetupComplete.toLowerCase() === "true"
+            : Boolean(userData.isInitialSetupComplete);
+        return {
+          id: userData.id,
+          nombre: userData.nombre,
+          correo: userData.correo,
+          numero: userData.numero,
+          avatar: userData.avatar,
+          banner: userData.banner,
+          isInitialSetupComplete: setupFlag,
+        };
       }
     }
 
@@ -393,25 +503,42 @@ export const loginBusinessUser = async (numero, password) => {
   }
 };
 
-export const createBusinessUser = async (nombre, correo, numero, password, avatar = null) => {
+export const createBusinessUser = async (
+  nombre,
+  correo,
+  numero,
+  password,
+  avatar = null,
+) => {
   try {
-    console.log('Attempting to create business user:', { nombre, correo, numero });
+    console.log("Attempting to create business user:", {
+      nombre,
+      correo,
+      numero,
+    });
 
     // Check if email already exists
-    const existingUser = await db.collection("user-business").where("correo", "==", correo).get();
+    const existingUser = await db
+      .collection("user-business")
+      .where("correo", "==", correo)
+      .get();
     if (!existingUser.empty) {
-      throw new Error("El correo electrónico ya está registrado. Inicie sesión.");
+      throw new Error(
+        "El correo electrónico ya está registrado. Inicie sesión.",
+      );
     }
 
     // Generate 6-digit verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
 
     // Hash password and code
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     const hashedCode = hashCode(verificationCode);
 
-    const newId = await getNextId('businessUserId');
+    const newId = await getNextId("businessUserId");
     const userRef = db.collection("user-business").doc(newId.toString());
     await userRef.set({
       id: newId,
@@ -420,14 +547,14 @@ export const createBusinessUser = async (nombre, correo, numero, password, avata
       numero,
       password: hashedPassword,
       verificationCode: hashedCode,
-      status: 'pending_verification',
+      status: "pending_verification",
       verificationAttempts: 0,
       avatar: avatar || null,
       banner: null,
       isInitialSetupComplete: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log('Business user created successfully');
+    console.log("Business user created successfully");
     return { id: newId, nombre, correo, numero, verificationCode };
   } catch (error) {
     console.error("Firestore error creating business user:", error);
@@ -437,23 +564,24 @@ export const createBusinessUser = async (nombre, correo, numero, password, avata
 
 export const resendVerificationCode = async (userId) => {
   try {
-    console.log('Reenvio de codigo por:', userId);
+    console.log("Reenvio de codigo por:", userId);
 
     return await db.runTransaction(async (transaction) => {
       const userRef = db.collection("users").doc(userId);
       const userDoc = await transaction.get(userRef);
 
-      if (!userDoc.exists) throw new Error('Usuario no encontrado');
+      if (!userDoc.exists) throw new Error("Usuario no encontrado");
 
       const userData = userDoc.data();
-      const now = Date.now(); // 🔹 usamos timestamp numérico local
+      const now = Date.now(); // � usamos timestamp numérico local
       const createdAt = userData.createdAt?.toMillis
         ? userData.createdAt.toMillis()
         : now - 2 * 60 * 1000;
 
-      const lastResend = typeof userData.lastResendRequest === 'number'
-        ? userData.lastResendRequest
-        : createdAt;
+      const lastResend =
+        typeof userData.lastResendRequest === "number"
+          ? userData.lastResendRequest
+          : createdAt;
 
       const diff = now - lastResend;
       const oneMinute = 60 * 1000;
@@ -463,13 +591,15 @@ export const resendVerificationCode = async (userId) => {
         lastResend,
         diff,
         hasLastResend: !!userData.lastResendRequest,
-        hasCreatedAt: !!userData.createdAt
+        hasCreatedAt: !!userData.createdAt,
       });
 
       if (diff < oneMinute) {
         const remaining = Math.ceil((oneMinute - diff) / 1000);
         console.log(`⛔ Blocked resend: must wait ${remaining}s`);
-        throw new Error(`Debes esperar ${remaining} segundos antes de reenviar.`);
+        throw new Error(
+          `Debes esperar ${remaining} segundos antes de reenviar.`,
+        );
       }
 
       const newCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -477,7 +607,7 @@ export const resendVerificationCode = async (userId) => {
 
       transaction.update(userRef, {
         verificationCode: hashedCode,
-        lastResendRequest: now, // 🔹 guardamos número, no serverTimestamp()
+        lastResendRequest: now, // � guardamos número, no serverTimestamp()
         verificationAttempts: 0,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -492,31 +622,36 @@ export const resendVerificationCode = async (userId) => {
       };
     });
   } catch (error) {
-    console.error("🔥 Error en el reenvio de codigo:", error.message);
+    console.error("� Error en el reenvio de codigo:", error.message);
     throw new Error(error.message);
   }
 };
 
 export const verifyBusinessCode = async (id, code) => {
   try {
-    if (!id || id.toString().trim() === '') {
-      throw new Error('Invalid id');
+    if (!id || id.toString().trim() === "") {
+      throw new Error("Invalid id");
     }
-    console.log('Verifying business user code:', { id });
+    console.log("Verifying business user code:", { id });
     const hashedCode = hashCode(code);
-    const userQuery = await db.collection("user-business").where("id", "==", id).get();
+    const userQuery = await db
+      .collection("user-business")
+      .where("id", "==", id)
+      .get();
     if (userQuery.empty) {
-      throw new Error('Business user not found');
+      throw new Error("Business user not found");
     }
     const userDoc = userQuery.docs[0];
     const userRef = userDoc.ref;
     const userData = userDoc.data();
     const now = admin.firestore.Timestamp.now().toMillis();
     const attempts = userData.verificationAttempts || 0;
-    const lastAttempt = userData.lastVerificationAttempt ? userData.lastVerificationAttempt.toMillis() : 0;
+    const lastAttempt = userData.lastVerificationAttempt
+      ? userData.lastVerificationAttempt.toMillis()
+      : 0;
     const oneHour = 60 * 60 * 1000;
 
-    if (attempts >= 3 && (now - lastAttempt) < oneHour) {
+    if (attempts >= 3 && now - lastAttempt < oneHour) {
       const remainingTime = Math.ceil((oneHour - (now - lastAttempt)) / 60000); // minutes
       throw new Error(`Demasiados intentos. Espera ${remainingTime} minutos.`);
     }
@@ -528,18 +663,18 @@ export const verifyBusinessCode = async (id, code) => {
     });
 
     if (userData.verificationCode !== hashedCode) {
-      throw new Error('Invalid verification code');
+      throw new Error("Invalid verification code");
     }
 
     // Success, reset attempts and verify
     await userRef.update({
-      status: 'verified',
+      status: "verified",
       verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
       verificationAttempts: 0,
       // Optionally remove verificationCode
     });
-    console.log('Business user verified successfully');
-    return { id: id, status: 'verified' };
+    console.log("Business user verified successfully");
+    return { id: id, status: "verified" };
   } catch (error) {
     console.error("Firestore error verifying business code:", error);
     throw new Error(error.message);
@@ -548,23 +683,27 @@ export const verifyBusinessCode = async (id, code) => {
 
 export const resendBusinessVerificationCode = async (id) => {
   try {
-    console.log('Reenvio de codigo de negocio por:', id);
+    console.log("Reenvio de codigo de negocio por:", id);
 
     return await db.runTransaction(async (transaction) => {
-      const userQuery = await db.collection("user-business").where("id", "==", id).get();
-      if (userQuery.empty) throw new Error('Usuario de negocio no encontrado');
+      const userQuery = await db
+        .collection("user-business")
+        .where("id", "==", id)
+        .get();
+      if (userQuery.empty) throw new Error("Usuario de negocio no encontrado");
       const userDoc = userQuery.docs[0];
       const userRef = userDoc.ref;
 
       const userData = userDoc.data();
-      const now = Date.now(); // 🔹 usamos timestamp numérico local
+      const now = Date.now(); // � usamos timestamp numérico local
       const createdAt = userData.createdAt?.toMillis
         ? userData.createdAt.toMillis()
         : now - 2 * 60 * 1000;
 
-      const lastResend = typeof userData.lastResendRequest === 'number'
-        ? userData.lastResendRequest
-        : createdAt;
+      const lastResend =
+        typeof userData.lastResendRequest === "number"
+          ? userData.lastResendRequest
+          : createdAt;
 
       const diff = now - lastResend;
       const oneMinute = 60 * 1000;
@@ -574,13 +713,15 @@ export const resendBusinessVerificationCode = async (id) => {
         lastResend,
         diff,
         hasLastResend: !!userData.lastResendRequest,
-        hasCreatedAt: !!userData.createdAt
+        hasCreatedAt: !!userData.createdAt,
       });
 
       if (diff < oneMinute) {
         const remaining = Math.ceil((oneMinute - diff) / 1000);
         console.log(`⛔ Blocked resend: must wait ${remaining}s`);
-        throw new Error(`Debes esperar ${remaining} segundos antes de reenviar.`);
+        throw new Error(
+          `Debes esperar ${remaining} segundos antes de reenviar.`,
+        );
       }
 
       const newCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -588,7 +729,7 @@ export const resendBusinessVerificationCode = async (id) => {
 
       transaction.update(userRef, {
         verificationCode: hashedCode,
-        lastResendRequest: now, // 🔹 guardamos número, no serverTimestamp()
+        lastResendRequest: now, // � guardamos número, no serverTimestamp()
         verificationAttempts: 0,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -603,12 +744,15 @@ export const resendBusinessVerificationCode = async (id) => {
       };
     });
   } catch (error) {
-    console.error("🔥 Error en el reenvio de codigo de negocio:", error.message);
+    console.error("� Error en el reenvio de codigo de negocio:", error.message);
     throw new Error(error.message);
   }
 };
 
-export const updateStaffFields = async (staffId, { nombre, apellido, numero, password, permissions }) => {
+export const updateStaffFields = async (
+  staffId,
+  { nombre, apellido, numero, password, permissions },
+) => {
   try {
     const staffRef = db.collection("staff").doc(String(staffId));
     const docSnap = await staffRef.get();
@@ -619,29 +763,40 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
     const updateData = {};
 
     if (nombre !== undefined) updateData.nombre = nombre;
-    if (apellido !== undefined) updateData.apellido = typeof apellido === 'string' ? apellido : '';
+    if (apellido !== undefined)
+      updateData.apellido = typeof apellido === "string" ? apellido : "";
 
     if (numero !== undefined) {
       // Basic digit-only validation when provided
-      if (typeof numero === 'string' && numero.trim() !== '' && !/^\d+$/.test(numero)) {
+      if (
+        typeof numero === "string" &&
+        numero.trim() !== "" &&
+        !/^\d+$/.test(numero)
+      ) {
         throw new Error("Numero debe contener solo digitos");
       }
       updateData.numero = numero;
       // Uniqueness check when numero is non-empty and changed
-      if (typeof numero === 'string' ? numero.trim() !== '' : !!numero) {
-        const existingPhone = await db.collection("staff")
+      if (typeof numero === "string" ? numero.trim() !== "" : !!numero) {
+        const existingPhone = await db
+          .collection("staff")
           .where("numero", "==", numero)
           .get();
-        const conflict = existingPhone.docs.some(d => d.id !== String(staffId));
+        const conflict = existingPhone.docs.some(
+          (d) => d.id !== String(staffId),
+        );
         if (conflict) {
-          throw new Error("El número de teléfono ya está registrado para un miembro del personal");
+          throw new Error(
+            "El número de teléfono ya está registrado para un miembro del personal",
+          );
         }
       }
     }
 
     if (password !== undefined) {
       let hashedPassword = null;
-      const hasPassword = typeof password === 'string' ? password.trim() !== '' : !!password;
+      const hasPassword =
+        typeof password === "string" ? password.trim() !== "" : !!password;
       if (hasPassword) {
         const saltRounds = 10;
         hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -653,9 +808,21 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
       if (permissions && typeof permissions === "object") {
         const current = docSnap.data().permissions || {};
         updateData.permissions = {
-          manualAppointments: Boolean(permissions.manualAppointments ?? current.manualAppointments ?? DEFAULT_STAFF_PERMISSIONS.manualAppointments),
-          manualBlocks: Boolean(permissions.manualBlocks ?? current.manualBlocks ?? DEFAULT_STAFF_PERMISSIONS.manualBlocks),
-          viewClientPhone: Boolean(permissions.viewClientPhone ?? current.viewClientPhone ?? DEFAULT_STAFF_PERMISSIONS.viewClientPhone),
+          manualAppointments: Boolean(
+            permissions.manualAppointments ??
+            current.manualAppointments ??
+            DEFAULT_STAFF_PERMISSIONS.manualAppointments,
+          ),
+          manualBlocks: Boolean(
+            permissions.manualBlocks ??
+            current.manualBlocks ??
+            DEFAULT_STAFF_PERMISSIONS.manualBlocks,
+          ),
+          viewClientPhone: Boolean(
+            permissions.viewClientPhone ??
+            current.viewClientPhone ??
+            DEFAULT_STAFF_PERMISSIONS.viewClientPhone,
+          ),
         };
       }
     }
@@ -669,7 +836,7 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
     return {
       id: updatedSnap.id,
       nombre: data.nombre,
-      apellido: data.apellido || '',
+      apellido: data.apellido || "",
       numero: data.numero,
       permissions: data.permissions || {
         manualAppointments: DEFAULT_STAFF_PERMISSIONS.manualAppointments,
@@ -683,19 +850,41 @@ export const updateStaffFields = async (staffId, { nombre, apellido, numero, pas
   }
 };
 
-export const APPOINTMENT_STATES = ["pendiente", "confirmado", "cancelado", "completado"];
+export const APPOINTMENT_STATES = [
+  "pendiente",
+  "confirmado",
+  "cancelado",
+  "completado",
+];
 
-export const createAppointment = async ({ businessId, staffId, userId, serviceId, serviceType, serviceDuration, date, horario, calificacion }) => {
+export const createAppointment = async ({
+  businessId,
+  staffId,
+  userId,
+  serviceId,
+  serviceType,
+  serviceDuration,
+  date,
+  horario,
+  calificacion,
+}) => {
   try {
     if (!businessId || !staffId || !date || !horario || !userId) {
-      throw new Error("Campos requeridos: businessId, staffId, userId, date, horario");
+      throw new Error(
+        "Campos requeridos: businessId, staffId, userId, date, horario",
+      );
     }
 
-    let finalDuration = typeof serviceDuration === 'number' ? serviceDuration : undefined;
-    let finalType = typeof serviceType === 'string' ? String(serviceType) : undefined;
+    let finalDuration =
+      typeof serviceDuration === "number" ? serviceDuration : undefined;
+    let finalType =
+      typeof serviceType === "string" ? String(serviceType) : undefined;
 
     // Validate business exists
-    const businessQuery = await db.collection("user-business").where("id", "==", Number(businessId)).get();
+    const businessQuery = await db
+      .collection("user-business")
+      .where("id", "==", Number(businessId))
+      .get();
     if (businessQuery.empty) {
       throw new Error("Business not found");
     }
@@ -724,7 +913,11 @@ export const createAppointment = async ({ businessId, staffId, userId, serviceId
     const m = Number(match[2]);
     const y = Number(match[3]);
     const jsDate = new Date(y, m - 1, d);
-    if (jsDate.getFullYear() !== y || jsDate.getMonth() !== (m - 1) || jsDate.getDate() !== d) {
+    if (
+      jsDate.getFullYear() !== y ||
+      jsDate.getMonth() !== m - 1 ||
+      jsDate.getDate() !== d
+    ) {
       throw new Error("Fecha inválida en el calendario");
     }
 
@@ -739,27 +932,35 @@ export const createAppointment = async ({ businessId, staffId, userId, serviceId
         throw new Error("Service no pertenece al negocio");
       }
       finalType = String(svcData.type ?? finalType ?? "");
-      if (finalDuration === undefined && typeof svcData.duration === 'number' && svcData.duration > 0) {
+      if (
+        finalDuration === undefined &&
+        typeof svcData.duration === "number" &&
+        svcData.duration > 0
+      ) {
         finalDuration = svcData.duration;
       }
     } else if (finalDuration === undefined && finalType) {
-      const svcSnap = await db.collection("services")
+      const svcSnap = await db
+        .collection("services")
         .where("businessId", "==", Number(businessId))
         .where("type", "==", String(finalType))
         .get();
       if (!svcSnap.empty) {
         const svc = svcSnap.docs[0].data();
-        if (typeof svc.duration === 'number' && svc.duration > 0) {
+        if (typeof svc.duration === "number" && svc.duration > 0) {
           finalDuration = svc.duration;
         }
       }
     }
-    if (finalDuration !== undefined && (typeof finalDuration !== 'number' || finalDuration <= 0)) {
+    if (
+      finalDuration !== undefined &&
+      (typeof finalDuration !== "number" || finalDuration <= 0)
+    ) {
       throw new Error("serviceDuration debe ser un número positivo (minutos)");
     }
 
     // Generate appointment id
-    const newId = await getNextId('appointmentId');
+    const newId = await getNextId("appointmentId");
     const appointmentRef = db.collection("appointments").doc(String(newId));
 
     const appointment = {
@@ -768,13 +969,17 @@ export const createAppointment = async ({ businessId, staffId, userId, serviceId
       staffdates: String(date),
       staffAppoinments: String(staffId),
       staffAppointmentsHour: String(horario),
-      serviceId: serviceId !== undefined && serviceId !== null ? Number(serviceId) : null,
+      serviceId:
+        serviceId !== undefined && serviceId !== null
+          ? Number(serviceId)
+          : null,
       serviceType: finalType ? String(finalType) : "",
-      serviceDuration: typeof finalDuration === 'number' ? finalDuration : null,
+      serviceDuration: typeof finalDuration === "number" ? finalDuration : null,
       state: "pendiente",
       userId: Number(userId),
       userNombre: userData?.nombre ?? "",
       userNumero: userData?.numero ?? "",
+      userAvatar: userData?.avatar ?? null,
     };
 
     await appointmentRef.set(appointment);
@@ -784,10 +989,10 @@ export const createAppointment = async ({ businessId, staffId, userId, serviceId
       staffId: String(staffId),
       serviceId: appointment.serviceId,
       serviceType: appointment.serviceType,
-      serviceDuration: typeof finalDuration === 'number' ? finalDuration : null,
+      serviceDuration: typeof finalDuration === "number" ? finalDuration : null,
       date: String(date),
       horario: String(horario),
-      calificacion: typeof calificacion === 'number' ? calificacion : null,
+      calificacion: typeof calificacion === "number" ? calificacion : null,
       state: "pendiente",
       userId: Number(userId),
       userNombre: userData?.nombre ?? "",
@@ -799,12 +1004,17 @@ export const createAppointment = async ({ businessId, staffId, userId, serviceId
     });
 
     // Vincular al staff: agregar fecha, id y hora a sus arrays
-    await db.collection("staff").doc(String(staffId)).update({
-      staffdates: admin.firestore.FieldValue.arrayUnion(String(date)),
-      staffAppoinments: admin.firestore.FieldValue.arrayUnion(String(newId)),
-      staffAppointmentsHour: admin.firestore.FieldValue.arrayUnion(String(horario)),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await db
+      .collection("staff")
+      .doc(String(staffId))
+      .update({
+        staffdates: admin.firestore.FieldValue.arrayUnion(String(date)),
+        staffAppoinments: admin.firestore.FieldValue.arrayUnion(String(newId)),
+        staffAppointmentsHour: admin.firestore.FieldValue.arrayUnion(
+          String(horario),
+        ),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     return appointment;
   } catch (error) {
@@ -816,7 +1026,9 @@ export const createAppointment = async ({ businessId, staffId, userId, serviceId
 export const updateAppointmentState = async (appointmentId, newState) => {
   try {
     if (!APPOINTMENT_STATES.includes(newState)) {
-      throw new Error(`Estado inválido. Valores permitidos: ${APPOINTMENT_STATES.join(", ")}`);
+      throw new Error(
+        `Estado inválido. Valores permitidos: ${APPOINTMENT_STATES.join(", ")}`,
+      );
     }
 
     const docRef = db.collection("appointments").doc(String(appointmentId));
@@ -836,11 +1048,15 @@ export const updateAppointmentState = async (appointmentId, newState) => {
       const hourStr = String(data.staffAppointmentsHour ?? data.horario ?? "");
       const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(dateStr);
       const hm = /^([0-9]{2}):([0-9]{2})$/.exec(hourStr);
-      let durationMin = typeof data.serviceDuration === "number" ? data.serviceDuration : null;
+      let durationMin =
+        typeof data.serviceDuration === "number" ? data.serviceDuration : null;
       if (!durationMin || durationMin <= 0) {
         const svcId = data.serviceId ?? null;
         if (svcId != null) {
-          const svcDoc = await db.collection("services").doc(String(svcId)).get();
+          const svcDoc = await db
+            .collection("services")
+            .doc(String(svcId))
+            .get();
           if (svcDoc.exists) {
             const svc = svcDoc.data();
             if (typeof svc.duration === "number" && svc.duration > 0) {
@@ -878,16 +1094,28 @@ export const updateAppointmentState = async (appointmentId, newState) => {
 
 export const getAppointmentsByBusiness = async (businessId) => {
   try {
-    const querySnap = await db.collection("appointments").where("businessId", "==", Number(businessId)).get();
-    const staffSnap = await db.collection("staff").where("businessId", "==", Number(businessId)).get();
-    const svcSnap = await db.collection("services").where("businessId", "==", Number(businessId)).get();
+    const querySnap = await db
+      .collection("appointments")
+      .where("businessId", "==", Number(businessId))
+      .get();
+    const staffSnap = await db
+      .collection("staff")
+      .where("businessId", "==", Number(businessId))
+      .get();
+    const svcSnap = await db
+      .collection("services")
+      .where("businessId", "==", Number(businessId))
+      .get();
     const staffMap = new Map();
-    staffSnap.docs.forEach(doc => {
+    staffSnap.docs.forEach((doc) => {
       const data = doc.data();
-      staffMap.set(String(doc.id), { nombre: data.nombre || '', apellido: data.apellido || '' });
+      staffMap.set(String(doc.id), {
+        nombre: data.nombre || "",
+        apellido: data.apellido || "",
+      });
     });
     const svcMap = new Map();
-    svcSnap.docs.forEach(doc => {
+    svcSnap.docs.forEach((doc) => {
       const data = doc.data();
       svcMap.set(Number(data.id ?? Number(doc.id)), {
         id: Number(data.id ?? Number(doc.id)),
@@ -899,32 +1127,135 @@ export const getAppointmentsByBusiness = async (businessId) => {
       });
     });
 
-    const results = querySnap.docs.map(d => {
+    const results = querySnap.docs.map((d) => {
       const data = d.data();
       const staffId = String(data.staffAppoinments ?? data.staffId ?? "");
-      const staffInfo = staffMap.get(staffId) || { nombre: '', apellido: '' };
+      const staffInfo = staffMap.get(staffId) || { nombre: "", apellido: "" };
       const serviceId = data.serviceId ?? null;
-      const svcInfo = serviceId != null ? (svcMap.get(Number(serviceId)) || null) : null;
+      const svcInfo =
+        serviceId != null ? svcMap.get(Number(serviceId)) || null : null;
       return {
         businessId: Number(data.businessId ?? businessId),
         idappointment: Number(data.idappointment ?? Number(d.id)),
         staffdates: String(data.staffdates ?? data.date ?? ""),
         staffAppoinments: Number(data.staffAppoinments ?? data.staffId ?? 0),
-        staffAppointmentsHour: String(data.staffAppointmentsHour ?? data.horario ?? ""),
+        staffAppointmentsHour: String(
+          data.staffAppointmentsHour ?? data.horario ?? "",
+        ),
         serviceType: String(data.serviceType ?? ""),
         serviceDuration: data.serviceDuration ?? null,
         state: data.state ?? "pendiente",
         staffNombre: staffInfo.nombre,
         staffApellido: staffInfo.apellido,
         service: svcInfo,
-        userId: typeof data.userId === "number" ? data.userId : (data.userId ? Number(data.userId) : null),
+        userId:
+          typeof data.userId === "number"
+            ? data.userId
+            : data.userId
+              ? Number(data.userId)
+              : null,
         userNombre: data.userNombre ?? "",
         userNumero: data.userNumero ?? "",
+        userAvatar: data.userAvatar ?? null,
       };
     });
     return results;
   } catch (error) {
     console.error("Firestore error obteniendo citas por negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Agrupa clientes por cantidad de citas en el negocio.
+ * - mejores: userId con más de 3 citas (count > 3)
+ * - noTeVisitan: userId con exactamente 3 citas
+ * - noHanVuelto: userId con 1 o 2 citas
+ * - todos: todos los userId únicos con al menos 1 cita
+ * Cada item es { userId, userName, userAvatar, staffdates }. userName viene de userNombre en las citas.
+ */
+export const getListClientsByBusiness = async (businessId) => {
+  try {
+    const appointments = await getAppointmentsByBusiness(businessId);
+    const byUser = new Map();
+
+    const toEpoch = (dateStr) => {
+      const raw = String(dateStr || "").trim();
+      const m1 = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(raw);
+      if (m1) {
+        const dd = Number(m1[1]);
+        const mm = Number(m1[2]);
+        const yyyy = Number(m1[3]);
+        return new Date(yyyy, mm - 1, dd, 0, 0, 0, 0).getTime();
+      }
+      const m2 = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(raw);
+      if (m2) {
+        const yyyy = Number(m2[1]);
+        const mm = Number(m2[2]);
+        const dd = Number(m2[3]);
+        return new Date(yyyy, mm - 1, dd, 0, 0, 0, 0).getTime();
+      }
+      return Number.NEGATIVE_INFINITY;
+    };
+
+    // Solo considerar citas hasta hoy (incluye hoy), excluye futuras.
+    const now = new Date();
+    const todayEndEpoch = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999,
+    ).getTime();
+
+    for (const appt of appointments) {
+      const uid = appt.userId;
+      if (uid == null) continue;
+      const apptEpoch = toEpoch(appt.staffdates);
+      if (apptEpoch > todayEndEpoch) continue;
+      const key = Number(uid);
+      if (!byUser.has(key)) {
+        byUser.set(key, {
+          userId: key,
+          userName: appt.userNombre ?? "",
+          userAvatar: appt.userAvatar ?? null,
+          count: 0,
+          staffdates: null,
+          latestDateEpoch: Number.NEGATIVE_INFINITY,
+        });
+      }
+      const rec = byUser.get(key);
+      rec.count += 1;
+      if (appt.userNombre) rec.userName = appt.userNombre;
+      if (appt.userAvatar !== undefined && appt.userAvatar !== null) {
+        rec.userAvatar = appt.userAvatar;
+      }
+      if (appt.staffdates) {
+        const candidateDate = String(appt.staffdates);
+        const candidateEpoch = apptEpoch;
+        if (candidateEpoch > rec.latestDateEpoch) {
+          rec.latestDateEpoch = candidateEpoch;
+          rec.staffdates = candidateDate;
+        }
+      }
+    }
+    const todos = [];
+    const mejores = [];
+    const noTeVisitan = [];
+    const noHanVuelto = [];
+    for (const rec of byUser.values()) {
+      const { userId, userName, userAvatar, staffdates } = rec;
+      const item = { userId, userName, userAvatar, staffdates };
+      todos.push(item);
+      if (rec.count > 3) mejores.push(item);
+      else if (rec.count === 3) noTeVisitan.push(item);
+      else noHanVuelto.push(item);
+    }
+    return { todos, mejores, noTeVisitan, noHanVuelto };
+  } catch (error) {
+    console.error("Firestore error listando clientes por negocio:", error);
     throw new Error(error.message);
   }
 };
@@ -950,7 +1281,12 @@ export const getAppointmentsWithStaffByBusiness = async (businessId) => {
       const staffId = String(data.staffId);
       const staffname = staffMap.get(staffId) || "";
       let date = data.date;
-      if (!date && data.day !== undefined && data.month !== undefined && data.year !== undefined) {
+      if (
+        !date &&
+        data.day !== undefined &&
+        data.month !== undefined &&
+        data.year !== undefined
+      ) {
         date = `${pad2(data.day)}/${pad2(data.month)}/${data.year}`;
       }
       return {
@@ -985,7 +1321,15 @@ export const getStaffNameById = async (staffId) => {
   }
 };
 
-const allowedDays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+const allowedDays = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
 const isValidTime = (t) => /^([0-9]{2}):([0-9]{2})$/.test(String(t));
 const normalizeDays = (input) => {
   const out = {};
@@ -1006,7 +1350,10 @@ const normalizeDays = (input) => {
       if (sh > eh || (sh === eh && sm >= em)) {
         throw new Error("start debe ser menor a until");
       }
-      if ((breakStart && !isValidTime(breakStart)) || (breakUntil && !isValidTime(breakUntil))) {
+      if (
+        (breakStart && !isValidTime(breakStart)) ||
+        (breakUntil && !isValidTime(breakUntil))
+      ) {
         throw new Error("breakStart/breakUntil inválidos");
       }
       if ((breakStart && !breakUntil) || (!breakStart && breakUntil)) {
@@ -1018,7 +1365,12 @@ const normalizeDays = (input) => {
         if (bsH > beH || (bsH === beH && bsM >= beM)) {
           throw new Error("breakStart debe ser menor a breakUntil");
         }
-        if (bsH < sh || (bsH === sh && bsM < sm) || beH > eh || (beH === eh && beM > em)) {
+        if (
+          bsH < sh ||
+          (bsH === sh && bsM < sm) ||
+          beH > eh ||
+          (beH === eh && beM > em)
+        ) {
           throw new Error("break fuera del rango [start, until]");
         }
       }
@@ -1037,10 +1389,14 @@ export const createBusinessSchedule = async (businessId, payload) => {
   try {
     const bizIdNum = Number(businessId);
     if (!bizIdNum) throw new Error("businessId requerido");
-    if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+    if (!payload.days || typeof payload.days !== "object")
+      throw new Error("days requerido");
     const holidays = Boolean(payload.holidays);
     const daysObj = normalizeDays(payload.days);
-    const userQuery = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    const userQuery = await db
+      .collection("user-business")
+      .where("id", "==", bizIdNum)
+      .get();
     if (userQuery.empty) throw new Error("Business not found");
     const newId = await getNextId("scheduleId");
     const ref = db.collection("schedules").doc(String(newId));
@@ -1060,7 +1416,11 @@ export const createBusinessSchedule = async (businessId, payload) => {
   }
 };
 
-export const updateBusinessSchedule = async (businessId, scheduleId, payload) => {
+export const updateBusinessSchedule = async (
+  businessId,
+  scheduleId,
+  payload,
+) => {
   try {
     const bizIdNum = Number(businessId);
     if (!bizIdNum) throw new Error("businessId requerido");
@@ -1069,10 +1429,12 @@ export const updateBusinessSchedule = async (businessId, scheduleId, payload) =>
     const snap = await ref.get();
     if (!snap.exists) throw new Error("Schedule not found");
     const data = snap.data();
-    if (Number(data.businessId) !== bizIdNum) throw new Error("Schedule no pertenece al negocio");
+    if (Number(data.businessId) !== bizIdNum)
+      throw new Error("Schedule no pertenece al negocio");
     const patch = {};
     if (payload.days !== undefined) {
-      if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+      if (!payload.days || typeof payload.days !== "object")
+        throw new Error("days requerido");
       patch.days = normalizeDays(payload.days);
     }
     if (payload.holidays !== undefined) {
@@ -1097,7 +1459,8 @@ export const deleteBusinessSchedule = async (businessId, scheduleId) => {
     const snap = await ref.get();
     if (!snap.exists) throw new Error("Schedule not found");
     const data = snap.data();
-    if (Number(data.businessId) !== bizIdNum) throw new Error("Schedule no pertenece al negocio");
+    if (Number(data.businessId) !== bizIdNum)
+      throw new Error("Schedule no pertenece al negocio");
     await ref.delete();
     return { id: Number(scheduleId), deleted: true };
   } catch (error) {
@@ -1109,7 +1472,10 @@ export const deleteBusinessSchedule = async (businessId, scheduleId) => {
 export const getBusinessSchedules = async (businessId) => {
   try {
     const bizIdNum = Number(businessId);
-    const snap = await db.collection("schedules").where("businessId", "==", bizIdNum).get();
+    const snap = await db
+      .collection("schedules")
+      .where("businessId", "==", bizIdNum)
+      .get();
     return snap.docs.map((d) => d.data());
   } catch (error) {
     console.error("Firestore error listando horarios de negocio:", error);
@@ -1125,8 +1491,10 @@ export const createStaffSchedule = async (businessId, staffId, payload) => {
     const staffDoc = await db.collection("staff").doc(stid).get();
     if (!staffDoc.exists) throw new Error("Staff not found");
     const sdata = staffDoc.data();
-    if (Number(sdata.businessId) !== bizIdNum) throw new Error("Staff no pertenece al negocio");
-    if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+    if (Number(sdata.businessId) !== bizIdNum)
+      throw new Error("Staff no pertenece al negocio");
+    if (!payload.days || typeof payload.days !== "object")
+      throw new Error("days requerido");
     const holidays = Boolean(payload.holidays);
     const daysObj = normalizeDays(payload.days);
     const newId = await getNextId("staffScheduleId");
@@ -1148,7 +1516,12 @@ export const createStaffSchedule = async (businessId, staffId, payload) => {
   }
 };
 
-export const updateStaffSchedule = async (businessId, staffId, scheduleId, payload) => {
+export const updateStaffSchedule = async (
+  businessId,
+  staffId,
+  scheduleId,
+  payload,
+) => {
   try {
     const bizIdNum = Number(businessId);
     const stid = String(staffId);
@@ -1158,10 +1531,12 @@ export const updateStaffSchedule = async (businessId, staffId, scheduleId, paylo
     const snap = await ref.get();
     if (!snap.exists) throw new Error("Schedule not found");
     const data = snap.data();
-    if (Number(data.businessId) !== bizIdNum || String(data.staffId) !== stid) throw new Error("Schedule no pertenece al staff o negocio");
+    if (Number(data.businessId) !== bizIdNum || String(data.staffId) !== stid)
+      throw new Error("Schedule no pertenece al staff o negocio");
     const patch = {};
     if (payload.days !== undefined) {
-      if (!payload.days || typeof payload.days !== "object") throw new Error("days requerido");
+      if (!payload.days || typeof payload.days !== "object")
+        throw new Error("days requerido");
       patch.days = normalizeDays(payload.days);
     }
     if (payload.holidays !== undefined) {
@@ -1186,7 +1561,8 @@ export const deleteStaffSchedule = async (businessId, staffId, scheduleId) => {
     const snap = await ref.get();
     if (!snap.exists) throw new Error("Schedule not found");
     const data = snap.data();
-    if (Number(data.businessId) !== bizIdNum || String(data.staffId) !== stid) throw new Error("Schedule no pertenece al staff o negocio");
+    if (Number(data.businessId) !== bizIdNum || String(data.staffId) !== stid)
+      throw new Error("Schedule no pertenece al staff o negocio");
     await ref.delete();
     return { id: Number(scheduleId), deleted: true };
   } catch (error) {
@@ -1198,7 +1574,10 @@ export const deleteStaffSchedule = async (businessId, staffId, scheduleId) => {
 export const getStaffSchedules = async (staffId) => {
   try {
     const stid = String(staffId);
-    const snap = await db.collection("staff-schedules").where("staffId", "==", stid).get();
+    const snap = await db
+      .collection("staff-schedules")
+      .where("staffId", "==", stid)
+      .get();
     return snap.docs.map((d) => d.data());
   } catch (error) {
     console.error("Firestore error listando horarios de staff:", error);
@@ -1220,12 +1599,18 @@ export const deleteBusinessUser = async (businessId) => {
     }
 
     // Borrar staff del negocio
-    const staffSnap = await db.collection("staff").where("businessId", "==", id).get();
+    const staffSnap = await db
+      .collection("staff")
+      .where("businessId", "==", id)
+      .get();
     const batch = db.batch();
     staffSnap.docs.forEach((d) => batch.delete(d.ref));
 
     // Borrar citas del negocio
-    const appointmentsSnap = await db.collection("appointments").where("businessId", "==", id).get();
+    const appointmentsSnap = await db
+      .collection("appointments")
+      .where("businessId", "==", id)
+      .get();
     appointmentsSnap.docs.forEach((d) => batch.delete(d.ref));
 
     // Borrar el documento del negocio
@@ -1241,7 +1626,10 @@ export const deleteBusinessUser = async (businessId) => {
 
 export const getBusinessById = async (businessId) => {
   try {
-    const doc = await db.collection("user-business").doc(String(businessId)).get();
+    const doc = await db
+      .collection("user-business")
+      .doc(String(businessId))
+      .get();
     if (!doc.exists) {
       throw new Error("Business not found");
     }
@@ -1249,17 +1637,19 @@ export const getBusinessById = async (businessId) => {
     // Return commonly used fields
     return {
       id: data.id ?? Number(doc.id),
-      nombre: data.nombre ?? '',
-      correo: data.correo ?? '',
-      numero: data.numero ?? '',
+      nombre: data.nombre ?? "",
+      correo: data.correo ?? "",
+      numero: data.numero ?? "",
       avatar: data.avatar ?? null,
       banner: data.banner ?? null,
-      name: data.name ?? '',
-      description: data.description ?? '',
+      name: data.name ?? "",
+      description: data.description ?? "",
       isInitialSetupComplete: !!data.isInitialSetupComplete,
       policies: {
-        cancellationAdvanceMinutes: data?.policies?.cancellationAdvanceMinutes ?? null,
-        minAdvanceBookingMinutes: data?.policies?.minAdvanceBookingMinutes ?? null,
+        cancellationAdvanceMinutes:
+          data?.policies?.cancellationAdvanceMinutes ?? null,
+        minAdvanceBookingMinutes:
+          data?.policies?.minAdvanceBookingMinutes ?? null,
         reminderMinutes: data?.policies?.reminderMinutes ?? null,
       },
     };
@@ -1271,14 +1661,17 @@ export const getBusinessById = async (businessId) => {
 
 export const getAllUsers = async () => {
   try {
-    const snapshot = await db.collection("users").orderBy("createdAt", "desc").get();
+    const snapshot = await db
+      .collection("users")
+      .orderBy("createdAt", "desc")
+      .get();
     const users = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         id: data.id ?? doc.id,
-        nombre: data.nombre ?? '',
-        numero: data.numero ?? '',
-        status: data.status ?? 'pending_verification',
+        nombre: data.nombre ?? "",
+        numero: data.numero ?? "",
+        status: data.status ?? "pending_verification",
         createdAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
         verifiedAt: data.verifiedAt?.toDate?.()?.toISOString() ?? null,
       };
@@ -1290,13 +1683,48 @@ export const getAllUsers = async () => {
   }
 };
 
-export const createService = async (businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite) => {
+export const getAllBusinesses = async () => {
+  try {
+    const snapshot = await db.collection("user-business").get();
+    const businesses = snapshot.docs.map((doc) => {
+      const data = doc.data() || {};
+      return {
+        businessId: data.id ?? Number(doc.id),
+        nombre: data.nombre ?? "",
+        numero: data.numero ?? "",
+        avatar: data.avatar ?? null,
+        banner: data.banner ?? null,
+        name: data.name ?? "",
+      };
+    });
+    return businesses;
+  } catch (error) {
+    console.error("Firestore error obteniendo negocios:", error);
+    throw new Error(`Error obteniendo negocios: ${error.message}`);
+  }
+};
+
+export const createService = async (
+  businessId,
+  name,
+  type,
+  duration,
+  price,
+  category,
+  description,
+  promotionTerms,
+  promotionValidUntil,
+  promotionValidIndefinite,
+) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
       throw new Error("businessId inválido");
     }
-    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    const bq = await db
+      .collection("user-business")
+      .where("id", "==", bizIdNum)
+      .get();
     if (bq.empty) {
       throw new Error("Business not found");
     }
@@ -1313,7 +1741,9 @@ export const createService = async (businessId, name, type, duration, price, cat
     }
     const catStr = String(category ?? "").toLowerCase();
     if (!["service", "promotion"].includes(catStr)) {
-      throw new Error("category inválido. Valores permitidos: service, promotion");
+      throw new Error(
+        "category inválido. Valores permitidos: service, promotion",
+      );
     }
     let promoTerms = "";
     let promoValidUntilStr = null;
@@ -1321,7 +1751,10 @@ export const createService = async (businessId, name, type, duration, price, cat
     if (catStr === "promotion") {
       promoTerms = String(promotionTerms ?? "").trim();
       const indef = promotionValidIndefinite === true;
-      const untilStr = promotionValidUntil !== undefined && promotionValidUntil !== null ? String(promotionValidUntil) : "";
+      const untilStr =
+        promotionValidUntil !== undefined && promotionValidUntil !== null
+          ? String(promotionValidUntil)
+          : "";
       if (!promoTerms) {
         throw new Error("terms requerido para promociones");
       }
@@ -1331,18 +1764,26 @@ export const createService = async (businessId, name, type, duration, price, cat
       } else if (untilStr) {
         const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(untilStr);
         if (!m) {
-          throw new Error("promotionValidUntil inválido. Formato requerido dd/MM/YYYY");
+          throw new Error(
+            "promotionValidUntil inválido. Formato requerido dd/MM/YYYY",
+          );
         }
         const d = Number(m[1]);
         const mo = Number(m[2]);
         const y = Number(m[3]);
         const jsDate = new Date(y, mo - 1, d);
-        if (jsDate.getFullYear() !== y || jsDate.getMonth() !== (mo - 1) || jsDate.getDate() !== d) {
+        if (
+          jsDate.getFullYear() !== y ||
+          jsDate.getMonth() !== mo - 1 ||
+          jsDate.getDate() !== d
+        ) {
           throw new Error("promotionValidUntil inválido en el calendario");
         }
         promoValidUntilStr = untilStr;
       } else {
-        throw new Error("validity requerido para promociones: enviar promotionValidUntil (dd/MM/YYYY) o promotionValidIndefinite=true");
+        throw new Error(
+          "validity requerido para promociones: enviar promotionValidUntil (dd/MM/YYYY) o promotionValidIndefinite=true",
+        );
       }
     }
     const newId = await getNextId("serviceId");
@@ -1400,7 +1841,10 @@ export const updateService = async (businessId, serviceId, updateData) => {
       }
       patch.price = priceNum;
     }
-    if (updateData.staffId === undefined && updateData.staffDuration !== undefined) {
+    if (
+      updateData.staffId === undefined &&
+      updateData.staffDuration !== undefined
+    ) {
       const val = updateData.staffDuration;
       if (val === null || String(val).toLowerCase() === "null") {
         patch.staffDuration = null;
@@ -1412,19 +1856,27 @@ export const updateService = async (businessId, serviceId, updateData) => {
         patch.staffDuration = sdNum;
       }
     }
-    if (updateData.staffId === undefined && updateData.staffcommission !== undefined) {
+    if (
+      updateData.staffId === undefined &&
+      updateData.staffcommission !== undefined
+    ) {
       const val = updateData.staffcommission;
       if (val === null || String(val).toLowerCase() === "null") {
         patch.staffcommission = null;
       } else {
         const scNum = Number(val);
         if (!Number.isFinite(scNum) || scNum < 0) {
-          throw new Error("staffcommission debe ser un número no negativo o 'null'");
+          throw new Error(
+            "staffcommission debe ser un número no negativo o 'null'",
+          );
         }
         patch.staffcommission = scNum;
       }
     }
-    if (updateData.staffId === undefined && updateData.staffprice !== undefined) {
+    if (
+      updateData.staffId === undefined &&
+      updateData.staffprice !== undefined
+    ) {
       const val = updateData.staffprice;
       if (val === null || String(val).toLowerCase() === "null") {
         patch.staffprice = null;
@@ -1440,7 +1892,9 @@ export const updateService = async (businessId, serviceId, updateData) => {
     if (updateData.category !== undefined) {
       const catStr = String(updateData.category ?? "").toLowerCase();
       if (!["service", "promotion"].includes(catStr)) {
-        throw new Error("category inválido. Valores permitidos: service, promotion");
+        throw new Error(
+          "category inválido. Valores permitidos: service, promotion",
+        );
       }
       patch.category = catStr;
       effectiveCategory = catStr;
@@ -1459,10 +1913,15 @@ export const updateService = async (businessId, serviceId, updateData) => {
       }
       patch.archived = updateData.archived;
     }
-    const hasPromoFields = updateData.promotionTerms !== undefined || updateData.promotionValidUntil !== undefined || updateData.promotionValidIndefinite !== undefined;
+    const hasPromoFields =
+      updateData.promotionTerms !== undefined ||
+      updateData.promotionValidUntil !== undefined ||
+      updateData.promotionValidIndefinite !== undefined;
     if (hasPromoFields) {
       if (String(effectiveCategory).toLowerCase() !== "promotion") {
-        throw new Error("Campos de promoción solo válidos cuando category=promotion");
+        throw new Error(
+          "Campos de promoción solo válidos cuando category=promotion",
+        );
       }
       if (updateData.promotionTerms !== undefined) {
         const t = String(updateData.promotionTerms ?? "").trim();
@@ -1486,13 +1945,19 @@ export const updateService = async (businessId, serviceId, updateData) => {
           const untilStr = String(untilVal);
           const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(untilStr);
           if (!m) {
-            throw new Error("promotionValidUntil inválido. Formato requerido dd/MM/YYYY");
+            throw new Error(
+              "promotionValidUntil inválido. Formato requerido dd/MM/YYYY",
+            );
           }
           const d = Number(m[1]);
           const mo = Number(m[2]);
           const y = Number(m[3]);
           const jsDate = new Date(y, mo - 1, d);
-          if (jsDate.getFullYear() !== y || jsDate.getMonth() !== (mo - 1) || jsDate.getDate() !== d) {
+          if (
+            jsDate.getFullYear() !== y ||
+            jsDate.getMonth() !== mo - 1 ||
+            jsDate.getDate() !== d
+          ) {
             throw new Error("promotionValidUntil inválido en el calendario");
           }
           patch.promotionValidUntil = untilStr;
@@ -1524,7 +1989,9 @@ export const updateService = async (businessId, serviceId, updateData) => {
         } else {
           const sdNum = Number(val);
           if (!Number.isFinite(sdNum) || sdNum <= 0) {
-            throw new Error("staffDuration debe ser un número positivo o 'null'");
+            throw new Error(
+              "staffDuration debe ser un número positivo o 'null'",
+            );
           }
           staffPatch[`staffServiceConfigs.${sid}.staffDuration`] = sdNum;
         }
@@ -1536,7 +2003,9 @@ export const updateService = async (businessId, serviceId, updateData) => {
         } else {
           const scNum = Number(val);
           if (!Number.isFinite(scNum) || scNum < 0) {
-            throw new Error("staffcommission debe ser un número no negativo o 'null'");
+            throw new Error(
+              "staffcommission debe ser un número no negativo o 'null'",
+            );
           }
           staffPatch[`staffServiceConfigs.${sid}.staffcommission`] = scNum;
         }
@@ -1548,12 +2017,16 @@ export const updateService = async (businessId, serviceId, updateData) => {
         } else {
           const spNum = Number(val);
           if (!Number.isFinite(spNum) || spNum < 0) {
-            throw new Error("staffprice debe ser un número no negativo o 'null'");
+            throw new Error(
+              "staffprice debe ser un número no negativo o 'null'",
+            );
           }
           staffPatch[`staffServiceConfigs.${sid}.staffprice`] = spNum;
         }
       }
-      staffPatch.staffServices = admin.firestore.FieldValue.arrayUnion(Number(sid));
+      staffPatch.staffServices = admin.firestore.FieldValue.arrayUnion(
+        Number(sid),
+      );
       staffPatch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
       await staffRef.update(staffPatch);
     }
@@ -1561,13 +2034,21 @@ export const updateService = async (businessId, serviceId, updateData) => {
     const updatedData = updated.data();
     // Construir staff[] para este servicio
     const staffList = [];
-    const staffSnap = await db.collection("staff").where("businessId", "==", bizIdNum).get();
+    const staffSnap = await db
+      .collection("staff")
+      .where("businessId", "==", bizIdNum)
+      .get();
     staffSnap.docs.forEach((sd) => {
       const d = sd.data();
-      const ss = Array.isArray(d.staffServices) ? d.staffServices.map((x) => Number(x)) : [];
+      const ss = Array.isArray(d.staffServices)
+        ? d.staffServices.map((x) => Number(x))
+        : [];
       const sidNum = Number(updatedData.id ?? Number(sid));
       if (ss.includes(sidNum)) {
-        const cfg = d.staffServiceConfigs && d.staffServiceConfigs[String(sidNum)] ? d.staffServiceConfigs[String(sidNum)] : {};
+        const cfg =
+          d.staffServiceConfigs && d.staffServiceConfigs[String(sidNum)]
+            ? d.staffServiceConfigs[String(sidNum)]
+            : {};
         const staffIdNum = Number(sd.id);
         staffList.push({
           id: Number.isFinite(staffIdNum) ? staffIdNum : sd.id,
@@ -1627,20 +2108,27 @@ export const getServicesByBusiness = async (businessId, category, staffId) => {
       const d = sd.data();
       return {
         id: sd.id,
-        staffServices: Array.isArray(d.staffServices) ? d.staffServices.map((x) => Number(x)) : [],
+        staffServices: Array.isArray(d.staffServices)
+          ? d.staffServices.map((x) => Number(x))
+          : [],
         cfg: d.staffServiceConfigs || {},
         nombre: d.nombre || "",
         apellido: d.apellido || "",
       };
     });
-    const filterStaffId = staffId !== undefined && staffId !== null ? String(staffId) : undefined;
-    return snap.docs.map((d) => {
-      const s = d.data();
-      const serviceIdNum = Number(s.id ?? Number(d.id));
-      const staffSource = staffRecords.filter((st) => st.staffServices.includes(serviceIdNum));
-      const staffFiltered = filterStaffId ? staffSource.filter((st) => String(st.id) === filterStaffId) : staffSource;
-      const staffList = staffFiltered
-        .map((st) => {
+    const filterStaffId =
+      staffId !== undefined && staffId !== null ? String(staffId) : undefined;
+    return snap.docs
+      .map((d) => {
+        const s = d.data();
+        const serviceIdNum = Number(s.id ?? Number(d.id));
+        const staffSource = staffRecords.filter((st) =>
+          st.staffServices.includes(serviceIdNum),
+        );
+        const staffFiltered = filterStaffId
+          ? staffSource.filter((st) => String(st.id) === filterStaffId)
+          : staffSource;
+        const staffList = staffFiltered.map((st) => {
           const key = String(serviceIdNum);
           const c = st.cfg && st.cfg[key] ? st.cfg[key] : {};
           const sidNum = Number(st.id);
@@ -1653,27 +2141,28 @@ export const getServicesByBusiness = async (businessId, category, staffId) => {
             apellido: st.apellido,
           };
         });
-      if (filterStaffId && staffList.length === 0) {
-        return null;
-      }
-      return {
-        id: s.id ?? Number(d.id),
-        businessId: bizIdNum,
-        name: s.name ?? "",
-        type: s.type ?? "",
-        duration: s.duration ?? null,
-        staffDuration: s.staffDuration ?? null,
-        staffcommission: s.staffcommission ?? null,
-        staff: staffList,
-        price: s.price ?? null,
-        category: s.category ?? "service",
-        description: s.description ?? "",
-        archived: s.archived ?? false,
-        promotionTerms: s.promotionTerms ?? "",
-        promotionValidUntil: s.promotionValidUntil ?? null,
-        promotionValidIndefinite: s.promotionValidIndefinite ?? false,
-      };
-    }).filter(Boolean);
+        if (filterStaffId && staffList.length === 0) {
+          return null;
+        }
+        return {
+          id: s.id ?? Number(d.id),
+          businessId: bizIdNum,
+          name: s.name ?? "",
+          type: s.type ?? "",
+          duration: s.duration ?? null,
+          staffDuration: s.staffDuration ?? null,
+          staffcommission: s.staffcommission ?? null,
+          staff: staffList,
+          price: s.price ?? null,
+          category: s.category ?? "service",
+          description: s.description ?? "",
+          archived: s.archived ?? false,
+          promotionTerms: s.promotionTerms ?? "",
+          promotionValidUntil: s.promotionValidUntil ?? null,
+          promotionValidIndefinite: s.promotionValidIndefinite ?? false,
+        };
+      })
+      .filter(Boolean);
   } catch (error) {
     console.error("Firestore error listando servicios:", error);
     throw new Error(error.message);
@@ -1683,7 +2172,10 @@ export const getServicesByBusiness = async (businessId, category, staffId) => {
 export const getServiceTypesByBusiness = async (businessId) => {
   try {
     const bizIdNum = Number(businessId);
-    const snap = await db.collection("services").where("businessId", "==", bizIdNum).get();
+    const snap = await db
+      .collection("services")
+      .where("businessId", "==", bizIdNum)
+      .get();
     const map = new Map();
     snap.docs.forEach((d) => {
       const s = d.data();
@@ -1699,7 +2191,10 @@ export const getServiceTypesByBusiness = async (businessId) => {
       });
       map.set(t, list);
     });
-    const result = Array.from(map.entries()).map(([type, services]) => ({ type, services }));
+    const result = Array.from(map.entries()).map(([type, services]) => ({
+      type,
+      services,
+    }));
     return result;
   } catch (error) {
     console.error("Firestore error listando tipos de servicio:", error);
@@ -1737,7 +2232,10 @@ export const setStaffServices = async (businessId, staffId, serviceIds) => {
       if (!sDoc.exists) continue;
       const sData = sDoc.data();
       if (Number(sData.businessId) !== bizIdNum) continue;
-      services.push({ id: sData.id ?? Number(sDoc.id), name: sData.name ?? "" });
+      services.push({
+        id: sData.id ?? Number(sDoc.id),
+        name: sData.name ?? "",
+      });
     }
     await staffRef.update({
       staffServices: services.map((s) => Number(s.id)),
@@ -1750,7 +2248,10 @@ export const setStaffServices = async (businessId, staffId, serviceIds) => {
   }
 };
 
-export const updateBusinessPolicies = async (businessId, { cancellationAdvanceMinutes, minAdvanceBookingMinutes, reminderMinutes }) => {
+export const updateBusinessPolicies = async (
+  businessId,
+  { cancellationAdvanceMinutes, minAdvanceBookingMinutes, reminderMinutes },
+) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
@@ -1771,8 +2272,14 @@ export const updateBusinessPolicies = async (businessId, { cancellationAdvanceMi
       return Math.floor(n);
     };
     const polPatch = {};
-    const c = parseMinutes(cancellationAdvanceMinutes, "cancellationAdvanceMinutes");
-    const a = parseMinutes(minAdvanceBookingMinutes, "minAdvanceBookingMinutes");
+    const c = parseMinutes(
+      cancellationAdvanceMinutes,
+      "cancellationAdvanceMinutes",
+    );
+    const a = parseMinutes(
+      minAdvanceBookingMinutes,
+      "minAdvanceBookingMinutes",
+    );
     const r = parseMinutes(reminderMinutes, "reminderMinutes");
     if (c !== undefined) polPatch["policies.cancellationAdvanceMinutes"] = c;
     if (a !== undefined) polPatch["policies.minAdvanceBookingMinutes"] = a;
@@ -1782,8 +2289,10 @@ export const updateBusinessPolicies = async (businessId, { cancellationAdvanceMi
     const updated = await ref.get();
     const data = updated.data() || {};
     return {
-      cancellationAdvanceMinutes: data?.policies?.cancellationAdvanceMinutes ?? null,
-      minAdvanceBookingMinutes: data?.policies?.minAdvanceBookingMinutes ?? null,
+      cancellationAdvanceMinutes:
+        data?.policies?.cancellationAdvanceMinutes ?? null,
+      minAdvanceBookingMinutes:
+        data?.policies?.minAdvanceBookingMinutes ?? null,
       reminderMinutes: data?.policies?.reminderMinutes ?? null,
     };
   } catch (error) {
@@ -1801,8 +2310,10 @@ export const getBusinessPolicies = async (businessId) => {
     }
     const data = snap.data() || {};
     return {
-      cancellationAdvanceMinutes: data?.policies?.cancellationAdvanceMinutes ?? null,
-      minAdvanceBookingMinutes: data?.policies?.minAdvanceBookingMinutes ?? null,
+      cancellationAdvanceMinutes:
+        data?.policies?.cancellationAdvanceMinutes ?? null,
+      minAdvanceBookingMinutes:
+        data?.policies?.minAdvanceBookingMinutes ?? null,
       reminderMinutes: data?.policies?.reminderMinutes ?? null,
     };
   } catch (error) {
@@ -1811,13 +2322,43 @@ export const getBusinessPolicies = async (businessId) => {
   }
 };
 
+/** Categorías predefinidas de gastos (solo id y name para listado en Swagger/API) */
+export const getExpenseCategories = () => {
+  return [
+    { id: 1, name: "Gastos" },
+    { id: 2, name: "Pago de comisiones" },
+    { id: 3, name: "Utilidades de servicios" },
+    { id: 4, name: "Utilidades de productos" },
+    { id: 5, name: "Tasa de ocupación" },
+    { id: 6, name: "Valor de facturas del mes" },
+    { id: 7, name: "Cantidad de facturas del mes" },
+  ];
+};
+
+export const getExpenseCategoryById = (categoryId) => {
+  const categories = getExpenseCategories().reduce(
+    (acc, c) => ({ ...acc, [c.id]: c }),
+    {},
+  );
+  const category = categories[categoryId];
+  if (!category) {
+    throw new Error(
+      "Categoría de gasto inválida. Use un id entre 1 y 7 (obtener listado desde GET /expense-categories)",
+    );
+  }
+  return category;
+};
+
 export const createExpenseCategory = async (businessId, name) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
       throw new Error("businessId inválido");
     }
-    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    const bq = await db
+      .collection("user-business")
+      .where("id", "==", bizIdNum)
+      .get();
     if (bq.empty) {
       throw new Error("Business not found");
     }
@@ -1845,7 +2386,10 @@ export const createExpenseCategory = async (businessId, name) => {
 export const getExpenseCategoriesByBusiness = async (businessId) => {
   try {
     const bizIdNum = Number(businessId);
-    const snap = await db.collection("expense-categories").where("businessId", "==", bizIdNum).get();
+    const snap = await db
+      .collection("expense-categories")
+      .where("businessId", "==", bizIdNum)
+      .get();
     return snap.docs.map((d) => {
       const data = d.data() || {};
       return {
@@ -1860,13 +2404,23 @@ export const getExpenseCategoriesByBusiness = async (businessId) => {
   }
 };
 
-export const createExpense = async ({ businessId, name, category, categoryId, paidAt, amount }) => {
+export const createExpense = async ({
+  businessId,
+  name,
+  category,
+  categoryId,
+  paidAt,
+  amount,
+}) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
       throw new Error("businessId inválido");
     }
-    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    const bq = await db
+      .collection("user-business")
+      .where("id", "==", bizIdNum)
+      .get();
     if (bq.empty) {
       throw new Error("Business not found");
     }
@@ -1876,20 +2430,29 @@ export const createExpense = async ({ businessId, name, category, categoryId, pa
     if (!Number.isFinite(amtNum) || amtNum < 0) {
       throw new Error("amount debe ser un número no negativo");
     }
-    let catIdNum = categoryId !== undefined && categoryId !== null ? Number(categoryId) : undefined;
-    let catName = category !== undefined && category !== null ? String(category).trim() : undefined;
-    if (catIdNum !== undefined && !Number.isFinite(catIdNum)) {
-      throw new Error("categoryId inválido");
+    const catIdNum =
+      categoryId !== undefined && categoryId !== null
+        ? Number(categoryId)
+        : undefined;
+    if (catIdNum === undefined || !Number.isFinite(catIdNum)) {
+      throw new Error(
+        "categoryId requerido (obtener listado desde GET /expense-categories)",
+      );
     }
-    if (catIdNum !== undefined) {
-      const cdoc = await db.collection("expense-categories").doc(String(catIdNum)).get();
+    let catName;
+    const predefined = getExpenseCategories().find((c) => c.id === catIdNum);
+    if (predefined) {
+      catName = predefined.name;
+    } else {
+      const cdoc = await db
+        .collection("expense-categories")
+        .doc(String(catIdNum))
+        .get();
       if (!cdoc.exists) throw new Error("Categoría no encontrada");
       const cdata = cdoc.data();
-      if (Number(cdata.businessId) !== bizIdNum) throw new Error("Categoría no pertenece al negocio");
-      catName = cdata.name ?? (catName || "");
-    }
-    if ((!catName || !catName.trim()) && catIdNum === undefined) {
-      throw new Error("category requerido");
+      if (Number(cdata.businessId) !== bizIdNum)
+        throw new Error("Categoría no pertenece al negocio");
+      catName = cdata.name ?? "";
     }
     const normalizeDate = (s) => {
       const str = String(s || "").trim();
@@ -1909,16 +2472,24 @@ export const createExpense = async ({ businessId, name, category, categoryId, pa
         const dd = Number(m2[3]);
         const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
         const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
-        return { date: dt, iso, display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}` };
+        return {
+          date: dt,
+          iso,
+          display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}`,
+        };
       }
       throw new Error("paidAt debe tener formato dd/MM/YYYY o YYYY-MM-DD");
     };
     const d = normalizeDate(paidAt);
     const calcISOWeek = (date) => {
-      const tmp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      const tmp = new Date(
+        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+      );
       tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
       const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-      const weekNo = Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      const weekNo = Math.ceil(
+        ((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+      );
       const isoYear = tmp.getUTCFullYear();
       return { isoYear, isoWeek: weekNo };
     };
@@ -1934,7 +2505,9 @@ export const createExpense = async ({ businessId, name, category, categoryId, pa
       amount: amtNum,
       paidAt: d.display,
       paidAtISO: d.iso,
-      paidAtTimestamp: admin.firestore.Timestamp.fromDate(new Date(d.date.getTime())),
+      paidAtTimestamp: admin.firestore.Timestamp.fromDate(
+        new Date(d.date.getTime()),
+      ),
       year: Number(d.display.slice(6, 10)),
       month: Number(d.display.slice(3, 5)),
       isoYear,
@@ -1961,7 +2534,10 @@ export const createExpense = async ({ businessId, name, category, categoryId, pa
   }
 };
 
-export const getExpensesByBusiness = async (businessId, { year, week } = {}) => {
+export const getExpensesByBusiness = async (
+  businessId,
+  { year, week } = {},
+) => {
   try {
     const bizIdNum = Number(businessId);
     let q = db.collection("expenses").where("businessId", "==", bizIdNum);
@@ -1984,7 +2560,11 @@ export const getExpensesByBusiness = async (businessId, { year, week } = {}) => 
       };
     });
     if (typeof year === "number" && typeof week === "number") {
-      return list.filter((e) => Number(e.isoYear) === Number(year) && Number(e.isoWeek) === Number(week));
+      return list.filter(
+        (e) =>
+          Number(e.isoYear) === Number(year) &&
+          Number(e.isoWeek) === Number(week),
+      );
     }
     if (typeof year === "number") {
       return list.filter((e) => Number(e.year) === Number(year));
@@ -1999,49 +2579,60 @@ export const getExpensesByBusiness = async (businessId, { year, week } = {}) => 
 export const getIncomeCategoryById = (categoryId) => {
   const categories = {
     1: { id: 1, name: "Venta de productos" },
-    2: { id: 2, name: "Venta de servicios" }
+    2: { id: 2, name: "Venta de servicios" },
   };
-  
+
   const category = categories[categoryId];
   if (!category) {
-    throw new Error("Categoría de ingreso inválida. Solo se permite 1 (Venta de productos) o 2 (Venta de servicios)");
+    throw new Error(
+      "Categoría de ingreso inválida. Solo se permite 1 (Venta de productos) o 2 (Venta de servicios)",
+    );
   }
-  
+
   return category;
 };
 
 export const getIncomeCategories = () => {
   return [
     { id: 1, name: "Venta de productos" },
-    { id: 2, name: "Venta de servicios" }
+    { id: 2, name: "Venta de servicios" },
   ];
 };
 
-export const createIncome = async ({ businessId, name, categoryId, receivedAt, amount }) => {
+export const createIncome = async ({
+  businessId,
+  name,
+  categoryId,
+  receivedAt,
+  amount,
+}) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
       throw new Error("businessId inválido");
     }
-    const bq = await db.collection("user-business").where("id", "==", bizIdNum).get();
+    const bq = await db
+      .collection("user-business")
+      .where("id", "==", bizIdNum)
+      .get();
     if (bq.empty) {
       throw new Error("Business not found");
     }
     const nm = String(name || "").trim();
     if (!nm) throw new Error("name requerido");
-    
+
     const catIdNum = Number(categoryId);
     if (!Number.isFinite(catIdNum)) {
       throw new Error("categoryId inválido");
     }
-    
+
     const category = getIncomeCategoryById(catIdNum);
-    
+
     const amtNum = parseFloat(amount);
     if (!Number.isFinite(amtNum) || amtNum < 0) {
       throw new Error("amount debe ser un número no negativo");
     }
-    
+
     const normalizeDate = (s) => {
       const str = String(s || "").trim();
       const m1 = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(str);
@@ -2060,16 +2651,24 @@ export const createIncome = async ({ businessId, name, categoryId, receivedAt, a
         const dd = Number(m2[3]);
         const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
         const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
-        return { date: dt, iso, display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}` };
+        return {
+          date: dt,
+          iso,
+          display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}`,
+        };
       }
       throw new Error("receivedAt debe tener formato dd/MM/YYYY o YYYY-MM-DD");
     };
     const d = normalizeDate(receivedAt);
     const calcISOWeek = (date) => {
-      const tmp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      const tmp = new Date(
+        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+      );
       tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
       const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-      const weekNo = Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      const weekNo = Math.ceil(
+        ((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+      );
       const isoYear = tmp.getUTCFullYear();
       return { isoYear, isoWeek: weekNo };
     };
@@ -2085,7 +2684,9 @@ export const createIncome = async ({ businessId, name, categoryId, receivedAt, a
       amount: amtNum,
       receivedAt: d.display,
       receivedAtISO: d.iso,
-      receivedAtTimestamp: admin.firestore.Timestamp.fromDate(new Date(d.date.getTime())),
+      receivedAtTimestamp: admin.firestore.Timestamp.fromDate(
+        new Date(d.date.getTime()),
+      ),
       year: Number(d.display.slice(6, 10)),
       month: Number(d.display.slice(3, 5)),
       isoYear,
@@ -2135,7 +2736,11 @@ export const getIncomesByBusiness = async (businessId, { year, week } = {}) => {
       };
     });
     if (typeof year === "number" && typeof week === "number") {
-      return list.filter((e) => Number(e.isoYear) === Number(year) && Number(e.isoWeek) === Number(week));
+      return list.filter(
+        (e) =>
+          Number(e.isoYear) === Number(year) &&
+          Number(e.isoWeek) === Number(week),
+      );
     }
     if (typeof year === "number") {
       return list.filter((e) => Number(e.year) === Number(year));
@@ -2147,7 +2752,10 @@ export const getIncomesByBusiness = async (businessId, { year, week } = {}) => {
   }
 };
 
-export const updateIncome = async (id, { name, category, categoryId, receivedAt, amount }) => {
+export const updateIncome = async (
+  id,
+  { name, category, categoryId, receivedAt, amount },
+) => {
   try {
     const idNum = Number(id);
     if (!Number.isFinite(idNum)) {
@@ -2160,13 +2768,13 @@ export const updateIncome = async (id, { name, category, categoryId, receivedAt,
     }
     const data = docSnap.data();
     const updates = {};
-    
+
     if (name !== undefined) {
       const nm = String(name).trim();
       if (!nm) throw new Error("name no puede estar vacío");
       updates.name = nm;
     }
-    
+
     if (amount !== undefined) {
       const amtNum = parseFloat(amount);
       if (!Number.isFinite(amtNum) || amtNum < 0) {
@@ -2174,7 +2782,7 @@ export const updateIncome = async (id, { name, category, categoryId, receivedAt,
       }
       updates.amount = amtNum;
     }
-    
+
     if (receivedAt !== undefined) {
       const normalizeDate = (s) => {
         const str = String(s || "").trim();
@@ -2194,55 +2802,81 @@ export const updateIncome = async (id, { name, category, categoryId, receivedAt,
           const dd = Number(m2[3]);
           const dt = new Date(Date.UTC(yyyy, mm - 1, dd));
           const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
-          return { date: dt, iso, display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}` };
+          return {
+            date: dt,
+            iso,
+            display: `${dd.toString().padStart(2, "0")}/${mm.toString().padStart(2, "0")}/${yyyy}`,
+          };
         }
-        throw new Error("receivedAt debe tener formato dd/MM/YYYY o YYYY-MM-DD");
+        throw new Error(
+          "receivedAt debe tener formato dd/MM/YYYY o YYYY-MM-DD",
+        );
       };
       const d = normalizeDate(receivedAt);
       const calcISOWeek = (date) => {
-        const tmp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+        const tmp = new Date(
+          Date.UTC(
+            date.getUTCFullYear(),
+            date.getUTCMonth(),
+            date.getUTCDate(),
+          ),
+        );
         tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
         const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-        const weekNo = Math.ceil((((tmp.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+        const weekNo = Math.ceil(
+          ((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+        );
         const isoYear = tmp.getUTCFullYear();
         return { isoYear, isoWeek: weekNo };
       };
       const { isoYear, isoWeek } = calcISOWeek(d.date);
       updates.receivedAt = d.display;
       updates.receivedAtISO = d.iso;
-      updates.receivedAtTimestamp = admin.firestore.Timestamp.fromDate(new Date(d.date.getTime()));
+      updates.receivedAtTimestamp = admin.firestore.Timestamp.fromDate(
+        new Date(d.date.getTime()),
+      );
       updates.year = Number(d.display.slice(6, 10));
       updates.month = Number(d.display.slice(3, 5));
       updates.isoYear = isoYear;
       updates.isoWeek = isoWeek;
     }
-    
+
     if (category !== undefined || categoryId !== undefined) {
-      let catIdNum = categoryId !== undefined && categoryId !== null ? Number(categoryId) : undefined;
-      let catName = category !== undefined && category !== null ? String(category).trim() : undefined;
-      
+      let catIdNum =
+        categoryId !== undefined && categoryId !== null
+          ? Number(categoryId)
+          : undefined;
+      let catName =
+        category !== undefined && category !== null
+          ? String(category).trim()
+          : undefined;
+
       if (catIdNum !== undefined && !Number.isFinite(catIdNum)) {
         throw new Error("categoryId inválido");
       }
-      
+
       if (catIdNum !== undefined) {
-        const cdoc = await db.collection("income-categories").doc(String(catIdNum)).get();
+        const cdoc = await db
+          .collection("income-categories")
+          .doc(String(catIdNum))
+          .get();
         if (!cdoc.exists) throw new Error("Categoría no encontrada");
         const cdata = cdoc.data();
-        if (Number(cdata.businessId) !== Number(data.businessId)) throw new Error("Categoría no pertenece al negocio");
+        if (Number(cdata.businessId) !== Number(data.businessId))
+          throw new Error("Categoría no pertenece al negocio");
         catName = cdata.name ?? (catName || "");
       }
-      
+
       updates.categoryId = catIdNum ?? null;
       updates.categoryName = catName ?? "";
     }
-    
+
     updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
     await docRef.update(updates);
-    
+
     const updatedDoc = await docRef.get();
     const updatedData = updatedDoc.data();
-    
+
     return {
       id: idNum,
       businessId: updatedData.businessId,
@@ -2299,50 +2933,86 @@ export const deleteExpense = async (id) => {
   }
 };
 
-export const getBusinessResults = async (businessId, { startDate, endDate, year, week } = {}) => {
+export const getBusinessResults = async (
+  businessId,
+  { startDate, endDate, year, week } = {},
+) => {
   try {
     const bizIdNum = Number(businessId);
     if (!Number.isFinite(bizIdNum)) {
       throw new Error("businessId inválido");
     }
-    
+
     let expenses = await getExpensesByBusiness(businessId, { year, week });
     let incomes = await getIncomesByBusiness(businessId, { year, week });
-    
+
     if (startDate || endDate) {
       const start = startDate ? new Date(startDate) : null;
       const end = endDate ? new Date(endDate) : null;
-      
+
       if (start && isNaN(start.getTime())) {
         throw new Error("startDate inválido");
       }
       if (end && isNaN(end.getTime())) {
         throw new Error("endDate inválido");
       }
-      
-      expenses = expenses.filter(expense => {
+
+      expenses = expenses.filter((expense) => {
         const expenseDate = new Date(expense.paidAtISO);
         if (start && expenseDate < start) return false;
         if (end && expenseDate > end) return false;
         return true;
       });
-      
-      incomes = incomes.filter(income => {
+
+      incomes = incomes.filter((income) => {
         const incomeDate = new Date(income.receivedAtISO);
         if (start && incomeDate < start) return false;
         if (end && incomeDate > end) return false;
         return true;
       });
     }
-    
-    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-    const totalIncomes = incomes.reduce((sum, income) => sum + Number(income.amount), 0);
+
+    const totalExpenses = expenses.reduce(
+      (sum, expense) => sum + Number(expense.amount),
+      0,
+    );
+    const totalCat1 = expenses
+      .filter((e) => e.categoryId === 1)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalCat2 = expenses
+      .filter((e) => e.categoryId === 2)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalCat3 = expenses
+      .filter((e) => e.categoryId === 3)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalCat4 = expenses
+      .filter((e) => e.categoryId === 4)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalCat5 = expenses
+      .filter((e) => e.categoryId === 5)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalCat6 = expenses
+      .filter((e) => e.categoryId === 6)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalCat7 = expenses
+      .filter((e) => e.categoryId === 7)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalIncomes = incomes.reduce(
+      (sum, income) => sum + Number(income.amount),
+      0,
+    );
+    const totalCatproduct = incomes
+      .filter((i) => i.categoryId === 1)
+      .reduce((sum, i) => sum + Number(i.amount), 0);
+    const totalCatservice = incomes
+      .filter((i) => i.categoryId === 2)
+      .reduce((sum, i) => sum + Number(i.amount), 0);
     const netResult = totalIncomes - totalExpenses;
-    
+
     const total = totalIncomes + totalExpenses;
     const expensePercentage = total > 0 ? (totalExpenses / total) * 100 : 0;
     const incomePercentage = total > 0 ? (totalIncomes / total) * 100 : 0;
-    
+
     return {
       businessId: bizIdNum,
       filters: { startDate, endDate, year, week },
@@ -2357,15 +3027,91 @@ export const getBusinessResults = async (businessId, { startDate, endDate, year,
         items: expenses,
         count: expenses.length,
         total: totalExpenses,
+        totalCat1,
+        totalCat2,
+        totalCat3,
+        totalCat4,
+        totalCat5,
+        totalCat6,
+        totalCat7,
       },
       incomes: {
         items: incomes,
         count: incomes.length,
         total: totalIncomes,
+        totalCatproduct,
+        totalCatservice,
       },
     };
   } catch (error) {
     console.error("Firestore error obteniendo resultados:", error);
+    throw new Error(error.message);
+  }
+};
+
+const getMostUsedNames = (items) => {
+  const counts = new Map();
+
+  items.forEach((item) => {
+    const rawName = String(item?.name ?? "").trim();
+    if (!rawName) return;
+    const key = rawName.toLowerCase();
+    const current = counts.get(key);
+    if (current) {
+      current.count += 1;
+      return;
+    }
+    counts.set(key, { name: rawName, count: 1 });
+  });
+
+  if (counts.size === 0) {
+    return [];
+  }
+
+  let maxCount = 0;
+  counts.forEach((entry) => {
+    if (entry.count > maxCount) {
+      maxCount = entry.count;
+    }
+  });
+
+  // Si no hay repetidos (todas las ocurrencias son 1), no retornar nombres.
+  if (maxCount <= 1) {
+    return [];
+  }
+
+  const mostUsed = [];
+  counts.forEach((entry) => {
+    if (entry.count === maxCount) {
+      mostUsed.push(entry.name);
+    }
+  });
+  return mostUsed;
+};
+
+export const getBusinessMostUsedTypes = async (businessId) => {
+  try {
+    const bizIdNum = Number(businessId);
+    if (!Number.isFinite(bizIdNum)) {
+      throw new Error("businessId inválido");
+    }
+
+    const expenses = await getExpensesByBusiness(businessId);
+    const incomes = await getIncomesByBusiness(businessId);
+
+    const mostUsedServicioType = getMostUsedNames(
+      incomes.filter((income) => Number(income.categoryId) === 2),
+    );
+    const mostUsedProductoType = getMostUsedNames(
+      incomes.filter((income) => Number(income.categoryId) === 1),
+    );
+
+    return {
+      mostUsedServicioType,
+      mostUsedProductoType,
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo tipos más usados:", error);
     throw new Error(error.message);
   }
 };

@@ -237,12 +237,11 @@ const options = {
         },
         CreateExpenseRequest: {
           type: "object",
-          required: ["businessId", "name", "paidAt", "amount"],
+          required: ["businessId", "name", "paidAt", "amount", "categoryId"],
           properties: {
             businessId: { type: "number", example: 1 },
             name: { type: "string", example: "Compra de toallas" },
-            category: { type: "string", nullable: true, example: "Insumos", description: "Nombre de la categoría (opcional si se envía categoryId)" },
-            categoryId: { type: "number", nullable: true, example: 3, description: "ID de la categoría (opcional si se envía category)" },
+            categoryId: { type: "number", example: 3, description: "ID de la categoría (obtener listado desde GET /expense-categories)" },
             paidAt: { type: "string", example: "15/02/2026", description: "dd/MM/YYYY o YYYY-MM-DD" },
             amount: { type: "number", example: 250.0 },
           },
@@ -250,8 +249,21 @@ const options = {
         ListExpensesResponse: {
           type: "object",
           properties: {
-            expenses: { type: "array", items: { $ref: "#/components/schemas/Expense" } },
-            total: { type: "number" },
+            expenses: {
+              type: "object",
+              properties: {
+                items: { type: "array", items: { $ref: "#/components/schemas/Expense" } },
+                count: { type: "number", description: "Cantidad de gastos" },
+                total: { type: "number", description: "Suma de todos los amount" },
+                totalCat1: { type: "number", description: "Suma amount categoría 1 (Gastos)" },
+                totalCat2: { type: "number", description: "Suma amount categoría 2 (Pago de comisiones)" },
+                totalCat3: { type: "number", description: "Suma amount categoría 3 (Utilidades de servicios)" },
+                totalCat4: { type: "number", description: "Suma amount categoría 4 (Utilidades de productos)" },
+                totalCat5: { type: "number", description: "Suma amount categoría 5 (Tasa de ocupación)" },
+                totalCat6: { type: "number", description: "Suma amount categoría 6 (Valor de facturas del mes)" },
+                totalCat7: { type: "number", description: "Suma amount categoría 7 (Cantidad de facturas del mes)" },
+              },
+            },
           },
         },
         ExpenseCategory: {
@@ -260,6 +272,22 @@ const options = {
             id: { type: "number" },
             businessId: { type: "number" },
             name: { type: "string", example: "Insumos" },
+          },
+        },
+        ExpenseCategoryItem: {
+          type: "object",
+          description: "Categoría predefinida de gastos (id y nombre)",
+          properties: {
+            id: { type: "number", example: 1 },
+            name: { type: "string", example: "Gastos" },
+          },
+        },
+        ListPredefinedExpenseCategoriesResponse: {
+          type: "object",
+          description: "Lista de categorías predefinidas: Gastos, Pago de comisiones, Utilidades de servicios, Utilidades de productos, Tasa de ocupación, Valor de facturas del mes, Cantidad de facturas del mes",
+          properties: {
+            categories: { type: "array", items: { $ref: "#/components/schemas/ExpenseCategoryItem" } },
+            total: { type: "number", example: 7 },
           },
         },
         CreateExpenseCategoryRequest: {
@@ -315,8 +343,16 @@ const options = {
         ListIncomesResponse: {
           type: "object",
           properties: {
-            incomes: { type: "array", items: { $ref: "#/components/schemas/Income" } },
-            total: { type: "number" },
+            incomes: {
+              type: "object",
+              properties: {
+                items: { type: "array", items: { $ref: "#/components/schemas/Income" } },
+                count: { type: "number", description: "Cantidad de ingresos" },
+                total: { type: "number", description: "Suma de todos los amount" },
+                totalCatproduct: { type: "number", description: "Suma de amount de categoría 1 (Venta de productos)" },
+                totalCatservice: { type: "number", description: "Suma de amount de categoría 2 (Venta de servicios)" },
+              },
+            },
           },
         },
         DeleteResponse: {
@@ -369,6 +405,13 @@ const options = {
                 items: { type: "array", items: { $ref: "#/components/schemas/Expense" } },
                 count: { type: "number", example: 5 },
                 total: { type: "number", example: 1500.5 },
+                totalCat1: { type: "number", description: "Suma amount categoría 1 (Gastos)" },
+                totalCat2: { type: "number", description: "Suma amount categoría 2 (Pago de comisiones)" },
+                totalCat3: { type: "number", description: "Suma amount categoría 3 (Utilidades de servicios)" },
+                totalCat4: { type: "number", description: "Suma amount categoría 4 (Utilidades de productos)" },
+                totalCat5: { type: "number", description: "Suma amount categoría 5 (Tasa de ocupación)" },
+                totalCat6: { type: "number", description: "Suma amount categoría 6 (Valor de facturas del mes)" },
+                totalCat7: { type: "number", description: "Suma amount categoría 7 (Cantidad de facturas del mes)" },
               },
             },
             incomes: {
@@ -377,6 +420,8 @@ const options = {
                 items: { type: "array", items: { $ref: "#/components/schemas/Income" } },
                 count: { type: "number", example: 10 },
                 total: { type: "number", example: 3000.0 },
+                totalCatproduct: { type: "number", description: "Suma de amount de categoría 1 (Venta de productos)" },
+                totalCatservice: { type: "number", description: "Suma de amount de categoría 2 (Venta de servicios)" },
               },
             },
           },
@@ -1047,6 +1092,16 @@ const options = {
         },
       },
       "/expense-categories": {
+        get: {
+          tags: ["Gastos"],
+          summary: "Listar categorías de gastos",
+          description: "Obtiene todas las categorías predefinidas para gastos (Gastos, Pago de comisiones, Utilidades de servicios, Utilidades de productos, Tasa de ocupación, Valor de facturas del mes, Cantidad de facturas del mes).",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: "Lista de categorías de gastos", content: { "application/json": { schema: { $ref: "#/components/schemas/ListPredefinedExpenseCategoriesResponse" } } } },
+            401: { description: "No autenticado" },
+          },
+        },
         post: {
           tags: ["Gastos"],
           summary: "Crear categoría de gasto",
@@ -1251,6 +1306,44 @@ const options = {
             200: { description: "Información del negocio" },
             401: { description: "No autenticado" },
             404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/get-business-id": {
+        get: {
+          tags: ["Negocios"],
+          summary: "Listar IDs de negocios",
+          description: "Retorna todos los negocios con businessId, nombre, numero, avatar, banner y name.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Listado de negocios",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      businesses: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            businessId: { type: "number" },
+                            nombre: { type: "string" },
+                            numero: { type: "string" },
+                            avatar: { type: "string", nullable: true },
+                            banner: { type: "string", nullable: true },
+                            name: { type: "string" },
+                          },
+                        },
+                      },
+                      total: { type: "number" },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: "No autenticado" },
           },
         },
       },
@@ -1626,7 +1719,85 @@ const options = {
                             userNombre: { type: "string" },
                             userNumero: { type: "string" },
                           },
+                          mostSoldServiceType: { type: "string" },
                         },
+                      },
+                    },
+                    mostSoldServiceType: { type: "string" },
+                  },
+                },
+              },
+            },
+            401: { description: "No autenticado" },
+          },
+        },
+      },
+      "/appointments/{businessId}/list-client": {
+        get: {
+          tags: ["Citas"],
+          summary: "Listar clientes segmentados",
+          description:
+            "Agrupa clientes por cantidad de citas en el negocio: mejores (más de 3 citas), noTeVisitan (3 citas), noHanVuelto (1 o 2 citas). Todos incluye todos los clientes con al menos una cita. Cada item tiene userId, userName, userAvatar y staffdates (fecha más reciente del cliente).",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" }, description: "ID del negocio" }],
+          responses: {
+            200: {
+              description: "Lista de clientes por segmento",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      todos: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            userId: { type: "number" },
+                            userName: { type: "string" },
+                            userAvatar: { type: "string", nullable: true },
+                            staffdates: { type: "string", nullable: true, example: "15/03/2026", description: "Fecha más reciente de cita del cliente" },
+                          },
+                        },
+                      },
+                      mejores: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            userId: { type: "number" },
+                            userName: { type: "string" },
+                            userAvatar: { type: "string", nullable: true },
+                            staffdates: { type: "string", nullable: true, example: "15/03/2026", description: "Fecha más reciente de cita del cliente" },
+                          },
+                        },
+                        description: "Clientes con más de 3 citas",
+                      },
+                      noTeVisitan: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            userId: { type: "number" },
+                            userName: { type: "string" },
+                            userAvatar: { type: "string", nullable: true },
+                            staffdates: { type: "string", nullable: true, example: "15/03/2026", description: "Fecha más reciente de cita del cliente" },
+                          },
+                        },
+                        description: "Clientes con exactamente 3 citas",
+                      },
+                      noHanVuelto: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            userId: { type: "number" },
+                            userName: { type: "string" },
+                            userAvatar: { type: "string", nullable: true },
+                            staffdates: { type: "string", nullable: true, example: "15/03/2026", description: "Fecha más reciente de cita del cliente" },
+                          },
+                        },
+                        description: "Clientes con 1 o 2 citas",
                       },
                     },
                   },
@@ -1634,6 +1805,7 @@ const options = {
               },
             },
             401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
           },
         },
       },
@@ -1657,12 +1829,33 @@ const options = {
       "/appointments/{appointmentId}/timer": {
         get: {
           tags: ["Citas"],
-          summary: "Cronómetro SSE de una cita confirmada",
-          description: "Stream SSE con ticks cada segundo y evento 'finished' al terminar el servicio.",
+          summary: "Cronómetro de una cita confirmada",
+          description:
+            "Sin query params: stream SSE (la petición queda abierta; ticks cada segundo). Con ?json=1: devuelve una sola respuesta JSON y cierra (recomendado para Swagger o polling).",
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "appointmentId", in: "path", required: true, schema: { type: "string" }, description: "ID de la cita" }],
+          parameters: [
+            { name: "appointmentId", in: "path", required: true, schema: { type: "string" }, description: "ID de la cita" },
+            { name: "json", in: "query", required: false, schema: { type: "string", enum: ["1", "true"] }, description: "Si es 1 o true, respuesta JSON única (no stream); la petición termina y no queda cargando." },
+          ],
           responses: {
-            200: { description: "Stream SSE", content: { "text/event-stream": { schema: { type: "string" } } } },
+            200: {
+              description: "Con json=1: objeto con startAtEpoch, endAtEpoch, now, timeLeftMs. Sin json: stream SSE.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      appointmentId: { type: "number" },
+                      startAtEpoch: { type: "number", nullable: true },
+                      endAtEpoch: { type: "number" },
+                      now: { type: "number" },
+                      timeLeftMs: { type: "number" },
+                    },
+                  },
+                },
+                "text/event-stream": { schema: { type: "string" } },
+              },
+            },
             400: { description: "No se puede calcular final del servicio", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             404: { description: "Cita no encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },

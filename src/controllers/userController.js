@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, deleteBusinessUser } from "../services/firestoreService.js";
+import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, getAllBusinesses, deleteBusinessUser } from "../services/firestoreService.js";
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
@@ -558,6 +558,16 @@ export const getUsers = async (req, res) => {
   } catch (error) {
     console.error("Error obteniendo usuarios:", error);
     return res.status(500).json({ error: "Error al obtener los usuarios registrados" });
+  }
+};
+
+export const getBusinessIds = async (req, res) => {
+  try {
+    const businesses = await getAllBusinesses();
+    return res.status(200).json({ businesses, total: businesses.length });
+  } catch (error) {
+    console.error("Error obteniendo negocios:", error);
+    return res.status(500).json({ error: "Error al obtener negocios" });
   }
 };
 

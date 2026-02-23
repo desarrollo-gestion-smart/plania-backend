@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getUsers, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getBusinessIds, getUsers, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController } from "../controllers/userController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import admin from "firebase-admin";
 import { verifyRefreshToken, generateToken, generateRefreshToken } from "../utils/jwt.js";
@@ -146,6 +146,7 @@ router.patch(
 
 // GET /api/get-business/:businessId
 router.get("/get-business/:businessId", authenticateToken, getBusinessInfo);
+router.get("/get-business-id", authenticateToken, getBusinessIds);
 
 // Policies
 router.get("/business/:businessId/policies", authenticateToken, getBusinessPoliciesController);

@@ -7,6 +7,7 @@ import {
   deleteIncomeController,
   deleteExpenseController,
   getResultsController,
+  getResultsMostUsedTypesController,
   listIncomeCategoriesController,
 } from "../controllers/incomesController.js";
 
@@ -18,6 +19,7 @@ router.put("/incomes/:id", authenticateToken, authorizeRoles("business"), update
 router.delete("/incomes/:id", authenticateToken, authorizeRoles("business"), deleteIncomeController);
 router.delete("/expenses/:id", authenticateToken, authorizeRoles("business"), deleteExpenseController);
 router.get("/results/:businessId", authenticateToken, getResultsController);
+router.get("/results/:businessId/most-used-types", authenticateToken, getResultsMostUsedTypesController);
 router.get("/income-categories", authenticateToken, listIncomeCategoriesController);
 
 export default router;
