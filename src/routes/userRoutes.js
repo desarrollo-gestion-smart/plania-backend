@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getBusinessIds, getUsers, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getBusinessIds, getUsers, getClient, updateClient, deleteClient, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController } from "../controllers/userController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import admin from "firebase-admin";
 import { verifyRefreshToken, generateToken, generateRefreshToken } from "../utils/jwt.js";
@@ -111,6 +111,19 @@ router.post("/verify-business", verifyBusiness);
 router.post("/resend-business", resendBusiness);
 
 // ─── Rutas protegidas (requieren autenticación) ────────────────────────
+// Clients
+router.get("/get-client/:clientId", authenticateToken, getClient);
+router.patch(
+  "/clients/:clientId",
+  authenticateToken,
+  upload.fields([
+    { name: "avatar", maxCount: 1 },
+    { name: "image", maxCount: 1 },
+  ]),
+  updateClient,
+);
+router.delete("/clients/:clientId", authenticateToken, deleteClient);
+
 // POST /api/upload-business-avatar
 router.post("/upload-business-avatar", authenticateToken, authorizeRoles("business"), upload.single("image"), uploadBusinessAvatar);
 

@@ -1092,20 +1092,150 @@ export const updateAppointmentState = async (appointmentId, newState) => {
   }
 };
 
+export const updateAppointmentReschedule = async (appointmentId, date, horario) => {
+  try {
+    const docRef = db.collection("appointments").doc(String(appointmentId));
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      throw new Error("Cita no encontrada");
+    }
+
+    const dateStr = String(date || "").trim();
+    const hourStr = String(horario || "").trim();
+    const m = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(dateStr);
+    if (!m) {
+      throw new Error("Fecha inválida. Formato requerido dd/MM/YYYY");
+    }
+    const d = Number(m[1]);
+    const mo = Number(m[2]);
+    const y = Number(m[3]);
+    const jsDate = new Date(y, mo - 1, d);
+    if (
+      jsDate.getFullYear() !== y ||
+      jsDate.getMonth() !== mo - 1 ||
+      jsDate.getDate() !== d
+    ) {
+      throw new Error("Fecha inválida en el calendario");
+    }
+
+    const hm = /^([0-9]{2}):([0-9]{2})$/.exec(hourStr);
+    if (!hm) {
+      throw new Error("Horario inválido. Formato requerido HH:mm");
+    }
+    const hh = Number(hm[1]);
+    const mm = Number(hm[2]);
+    if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+      throw new Error("Horario inválido. Usa una hora entre 00:00 y 23:59");
+    }
+
+    const patch = {
+      staffdates: dateStr,
+      staffAppointmentsHour: hourStr,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const data = doc.data() || {};
+    if (data.state === "confirmado") {
+      let durationMin =
+        typeof data.serviceDuration === "number" ? data.serviceDuration : null;
+      if (!durationMin || durationMin <= 0) {
+        const svcId = data.serviceId ?? null;
+        if (svcId != null) {
+          const svcDoc = await db
+            .collection("services")
+            .doc(String(svcId))
+            .get();
+          if (svcDoc.exists) {
+            const svc = svcDoc.data();
+            if (typeof svc.duration === "number" && svc.duration > 0) {
+              durationMin = Number(svc.duration);
+            }
+          }
+        }
+      }
+
+      if (durationMin && durationMin > 0) {
+        const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
+        const startMs = start.getTime();
+        const endMs = startMs + durationMin * 60000;
+        const endDt = new Date(endMs);
+        const endHH = String(endDt.getHours()).padStart(2, "0");
+        const endMM = String(endDt.getMinutes()).padStart(2, "0");
+        patch.startAtEpoch = startMs;
+        patch.endAtEpoch = endMs;
+        patch.endAt = `${endHH}:${endMM}`;
+      }
+    }
+
+    await docRef.update(patch);
+
+    return {
+      idappointment: Number(appointmentId),
+      date: patch.staffdates,
+      horario: patch.staffAppointmentsHour,
+    };
+  } catch (error) {
+    console.error("Firestore error reprogramando cita:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateAppointmentCalificacion = async (
+  appointmentsId,
+  calificacion,
+  descripcion,
+) => {
+  try {
+    const docRef = db.collection("appointments").doc(String(appointmentsId));
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      throw new Error("Cita no encontrada");
+    }
+
+    const now = new Date();
+    const calificacionUpdatedAt = `${String(now.getDate()).padStart(2, "0")}/${String(
+      now.getMonth() + 1,
+    ).padStart(2, "0")}/${now.getFullYear()}`;
+    const patch = {
+      calificacion:
+        calificacion === null || calificacion === undefined
+          ? null
+          : Number(calificacion),
+      descripcion:
+        descripcion === null || descripcion === undefined
+          ? null
+          : String(descripcion),
+      calificacionUpdatedAt,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await docRef.update(patch);
+
+    return {
+      idappointment: Number(appointmentsId),
+      calificacion: patch.calificacion,
+      descripcion: patch.descripcion,
+      calificacionUpdatedAt: patch.calificacionUpdatedAt,
+    };
+  } catch (error) {
+    console.error("Firestore error actualizando calificación de cita:", error);
+    throw new Error(error.message);
+  }
+};
+
 export const getAppointmentsByBusiness = async (businessId) => {
   try {
-    const querySnap = await db
-      .collection("appointments")
-      .where("businessId", "==", Number(businessId))
-      .get();
-    const staffSnap = await db
-      .collection("staff")
-      .where("businessId", "==", Number(businessId))
-      .get();
-    const svcSnap = await db
-      .collection("services")
-      .where("businessId", "==", Number(businessId))
-      .get();
+    const bizIdNum = Number(businessId);
+    const [querySnap, staffSnap, svcSnap, businessSnap] = await Promise.all([
+      db.collection("appointments").where("businessId", "==", bizIdNum).get(),
+      db.collection("staff").where("businessId", "==", bizIdNum).get(),
+      db.collection("services").where("businessId", "==", bizIdNum).get(),
+      db.collection("user-business").where("id", "==", bizIdNum).limit(1).get(),
+    ]);
+    const businessData = !businessSnap.empty ? businessSnap.docs[0].data() || {} : {};
+    const direccion = businessData?.direccion && typeof businessData.direccion === "object"
+      ? businessData.direccion
+      : null;
     const staffMap = new Map();
     staffSnap.docs.forEach((doc) => {
       const data = doc.data();
@@ -1144,7 +1274,12 @@ export const getAppointmentsByBusiness = async (businessId) => {
         ),
         serviceType: String(data.serviceType ?? ""),
         serviceDuration: data.serviceDuration ?? null,
+        direccion,
         state: data.state ?? "pendiente",
+        calificacion:
+          data.calificacion === null || data.calificacion === undefined
+            ? null
+            : Number(data.calificacion),
         staffNombre: staffInfo.nombre,
         staffApellido: staffInfo.apellido,
         service: svcInfo,
@@ -1162,6 +1297,91 @@ export const getAppointmentsByBusiness = async (businessId) => {
     return results;
   } catch (error) {
     console.error("Firestore error obteniendo citas por negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getAppointmentsByClientId = async (clientId) => {
+  try {
+    const clientIdNum = Number(clientId);
+    const querySnap = await db
+      .collection("appointments")
+      .where("userId", "==", clientIdNum)
+      .get();
+
+    const businessIds = Array.from(
+      new Set(
+        querySnap.docs
+          .map((d) => Number(d.data()?.businessId))
+          .filter((id) => Number.isFinite(id)),
+      ),
+    );
+    const businessMap = new Map();
+    if (businessIds.length > 0) {
+      const chunks = [];
+      for (let i = 0; i < businessIds.length; i += 10) {
+        chunks.push(businessIds.slice(i, i + 10));
+      }
+      const snaps = await Promise.all(
+        chunks.map((chunk) =>
+          db.collection("user-business").where("id", "in", chunk).get(),
+        ),
+      );
+      snaps.forEach((snap) => {
+        snap.docs.forEach((doc) => {
+          const b = doc.data() || {};
+          const id = Number(b.id ?? doc.id);
+          businessMap.set(id, b?.direccion && typeof b.direccion === "object" ? b.direccion : null);
+        });
+      });
+    }
+
+    const results = querySnap.docs.map((d) => {
+      const data = d.data();
+      const bizId = Number(data.businessId ?? 0);
+      return {
+        businessId: bizId,
+        idappointment: Number(data.idappointment ?? Number(d.id)),
+        staffdates: String(data.staffdates ?? data.date ?? ""),
+        staffAppoinments: Number(data.staffAppoinments ?? data.staffId ?? 0),
+        staffAppointmentsHour: String(
+          data.staffAppointmentsHour ?? data.horario ?? "",
+        ),
+        serviceType: String(data.serviceType ?? ""),
+        serviceDuration: data.serviceDuration ?? null,
+        direccion: businessMap.get(bizId) ?? null,
+        state: data.state ?? "pendiente",
+        status: data.state ?? "pendiente",
+        calificacion:
+          data.calificacion === null || data.calificacion === undefined
+            ? null
+            : Number(data.calificacion),
+        calificacionUpdatedAt: (() => {
+          const raw = data.calificacionUpdatedAt;
+          if (typeof raw === "string" && raw.trim()) return raw;
+          if (typeof raw === "number") {
+            const d = new Date(raw);
+            return `${String(d.getDate()).padStart(2, "0")}/${String(
+              d.getMonth() + 1,
+            ).padStart(2, "0")}/${d.getFullYear()}`;
+          }
+          return null;
+        })(),
+        userId:
+          typeof data.userId === "number"
+            ? data.userId
+            : data.userId
+              ? Number(data.userId)
+              : null,
+        userNombre: data.userNombre ?? "",
+        userNumero: data.userNumero ?? "",
+        userAvatar: data.userAvatar ?? null,
+      };
+    });
+
+    return results;
+  } catch (error) {
+    console.error("Firestore error obteniendo citas por clientId:", error);
     throw new Error(error.message);
   }
 };
@@ -1644,6 +1864,10 @@ export const getBusinessById = async (businessId) => {
       banner: data.banner ?? null,
       name: data.name ?? "",
       description: data.description ?? "",
+      direccion:
+        data?.direccion && typeof data.direccion === "object"
+          ? data.direccion
+          : null,
       isInitialSetupComplete: !!data.isInitialSetupComplete,
       policies: {
         cancellationAdvanceMinutes:
@@ -1680,6 +1904,98 @@ export const getAllUsers = async () => {
   } catch (error) {
     console.error("Firestore error obteniendo usuarios:", error);
     throw new Error(`Error obteniendo usuarios: ${error.message}`);
+  }
+};
+
+export const getAllClients = async () => {
+  try {
+    const snapshot = await db.collection("users").orderBy("createdAt", "desc").get();
+    return snapshot.docs.map((doc) => {
+      const data = doc.data() || {};
+      return {
+        id: data.id ?? Number(doc.id),
+        nombre: data.nombre ?? "",
+        apellido: data.apellido ?? "",
+        avatar: data.avatar ?? null,
+        numero: data.numero ?? "",
+      };
+    });
+  } catch (error) {
+    console.error("Firestore error listando clientes:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getClientById = async (clientId) => {
+  try {
+    const cid = String(clientId);
+    if (!cid) throw new Error("clientId es requerido");
+    const doc = await db.collection("users").doc(cid).get();
+    if (!doc.exists) {
+      throw new Error("Cliente no encontrado");
+    }
+    const data = doc.data() || {};
+    return {
+      id: data.id ?? Number(doc.id),
+      nombre: data.nombre ?? "",
+      apellido: data.apellido ?? "",
+      avatar: data.avatar ?? null,
+      numero: data.numero ?? "",
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo cliente:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const updateClientById = async (clientId, updateData = {}) => {
+  try {
+    const cid = String(clientId);
+    if (!cid) throw new Error("clientId es requerido");
+    const ref = db.collection("users").doc(cid);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new Error("Cliente no encontrado");
+    }
+
+    const patch = {};
+    if (updateData.nombre !== undefined) patch.nombre = String(updateData.nombre ?? "");
+    if (updateData.apellido !== undefined) patch.apellido = String(updateData.apellido ?? "");
+    if (updateData.numero !== undefined) patch.numero = String(updateData.numero ?? "");
+    if (updateData.avatar !== undefined) patch.avatar = updateData.avatar ?? null;
+    patch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    await ref.update(patch);
+
+    const updated = await ref.get();
+    const data = updated.data() || {};
+    return {
+      id: data.id ?? Number(updated.id),
+      nombre: data.nombre ?? "",
+      apellido: data.apellido ?? "",
+      avatar: data.avatar ?? null,
+      numero: data.numero ?? "",
+    };
+  } catch (error) {
+    console.error("Firestore error actualizando cliente:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const deleteClientById = async (clientId) => {
+  try {
+    const cid = String(clientId);
+    if (!cid) throw new Error("clientId es requerido");
+    const ref = db.collection("users").doc(cid);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new Error("Cliente no encontrado");
+    }
+    await ref.delete();
+    return { id: Number(clientId), deleted: true };
+  } catch (error) {
+    console.error("Firestore error eliminando cliente:", error);
+    throw new Error(error.message);
   }
 };
 
@@ -2165,6 +2481,153 @@ export const getServicesByBusiness = async (businessId, category, staffId) => {
       .filter(Boolean);
   } catch (error) {
     console.error("Firestore error listando servicios:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getGeneralServicesByBusiness = async ({ page = 1, limit = 10 }) => {
+  try {
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const safePage = Number.isFinite(pageNum) && pageNum > 0 ? pageNum : 1;
+    const safeLimit = Number.isFinite(limitNum) && limitNum > 0 ? limitNum : 10;
+
+    const servicesSnap = await db.collection("services").get();
+    const grouped = new Map();
+
+    servicesSnap.docs.forEach((d) => {
+      const s = d.data() || {};
+      const businessId = Number(s.businessId);
+      if (!Number.isFinite(businessId)) return;
+
+      if (!grouped.has(businessId)) {
+        grouped.set(businessId, []);
+      }
+
+      grouped.get(businessId).push({
+        id: s.id ?? Number(d.id),
+        businessId,
+        name: s.name ?? "",
+        type: s.type ?? "",
+        duration: s.duration ?? null,
+        price: s.price ?? null,
+        category: s.category ?? "service",
+        description: s.description ?? "",
+        archived: s.archived ?? false,
+        promotionTerms: s.promotionTerms ?? "",
+        promotionValidUntil: s.promotionValidUntil ?? null,
+        promotionValidIndefinite: s.promotionValidIndefinite ?? false,
+      });
+    });
+
+    const businessIds = Array.from(grouped.keys()).sort((a, b) => a - b);
+    const totalBusinesses = businessIds.length;
+    const totalPages = totalBusinesses === 0 ? 1 : Math.ceil(totalBusinesses / safeLimit);
+    const start = (safePage - 1) * safeLimit;
+    const paginatedBusinessIds = businessIds.slice(start, start + safeLimit);
+
+    const businessMap = new Map();
+    if (paginatedBusinessIds.length > 0) {
+      const chunks = [];
+      for (let i = 0; i < paginatedBusinessIds.length; i += 10) {
+        chunks.push(paginatedBusinessIds.slice(i, i + 10));
+      }
+
+      const businessSnaps = await Promise.all(
+        chunks.map((chunk) =>
+          db.collection("user-business").where("id", "in", chunk).get(),
+        ),
+      );
+
+      businessSnaps.forEach((snap) => {
+        snap.docs.forEach((doc) => {
+          const b = doc.data() || {};
+          const id = Number(b.id ?? doc.id);
+          businessMap.set(id, {
+            businessId: id,
+            businessName: b.name ?? b.nombre ?? "",
+            businessAvatar: b.avatar ?? null,
+            businessBanner: b.banner ?? null,
+          });
+        });
+      });
+    }
+
+    const staffByServiceKey = new Map();
+    if (paginatedBusinessIds.length > 0) {
+      const chunks = [];
+      for (let i = 0; i < paginatedBusinessIds.length; i += 10) {
+        chunks.push(paginatedBusinessIds.slice(i, i + 10));
+      }
+      const staffSnaps = await Promise.all(
+        chunks.map((chunk) =>
+          db.collection("staff").where("businessId", "in", chunk).get(),
+        ),
+      );
+      staffSnaps.forEach((snap) => {
+        snap.docs.forEach((doc) => {
+          const data = doc.data() || {};
+          const businessId = Number(data.businessId);
+          const staffIdRaw = data.id ?? doc.id;
+          const staffIdNum = Number(staffIdRaw);
+          const staffId = Number.isFinite(staffIdNum)
+            ? staffIdNum
+            : String(staffIdRaw);
+          const serviceIds = Array.isArray(data.staffServices)
+            ? data.staffServices
+            : [];
+          serviceIds.forEach((sidRaw) => {
+            const sid = Number(sidRaw);
+            if (!Number.isFinite(sid)) return;
+            const key = `${businessId}:${sid}`;
+            if (!staffByServiceKey.has(key)) {
+              staffByServiceKey.set(key, []);
+            }
+            staffByServiceKey.get(key).push(staffId);
+          });
+        });
+      });
+    }
+
+    const businesses = paginatedBusinessIds.map((businessId) => {
+      const info = businessMap.get(businessId) || {
+        businessId,
+        businessName: "",
+        businessAvatar: null,
+        businessBanner: null,
+      };
+      const services = (grouped.get(businessId) || []).map((service) => {
+        const key = `${businessId}:${Number(service.id)}`;
+        const staffIds = staffByServiceKey.has(key)
+          ? Array.from(new Set(staffByServiceKey.get(key)))
+          : [];
+        return {
+          ...service,
+          staff: {
+            ids: staffIds,
+          },
+        };
+      });
+      return {
+        ...info,
+        services,
+        total: services.length,
+      };
+    });
+
+    return {
+      businesses,
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        totalBusinesses,
+        totalPages,
+        hasNextPage: safePage < totalPages,
+        hasPrevPage: safePage > 1,
+      },
+    };
+  } catch (error) {
+    console.error("Firestore error listando servicios generales:", error);
     throw new Error(error.message);
   }
 };

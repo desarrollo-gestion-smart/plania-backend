@@ -2,7 +2,10 @@ import admin from "firebase-admin";
 import {
   createAppointment,
   getAppointmentsByBusiness,
+  getAppointmentsByClientId,
   getListClientsByBusiness,
+  updateAppointmentCalificacion,
+  updateAppointmentReschedule,
   updateAppointmentState,
   APPOINTMENT_STATES,
 } from "../services/firestoreService.js";
@@ -223,6 +226,171 @@ export const updateAppointmentStateController = async (req, res) => {
   }
 };
 
+export const updateAppointmentCalificacionController = async (req, res) => {
+  try {
+    const { appointmentsId } = req.params;
+    const { calificacion, descripcion } = req.body || {};
+
+    if (!appointmentsId) {
+      return res
+        .status(400)
+        .json({ error: "Parámetro appointmentsId es requerido" });
+    }
+
+    if (
+      calificacion !== null &&
+      calificacion !== undefined &&
+      typeof calificacion !== "number"
+    ) {
+      return res
+        .status(400)
+        .json({ error: "calificacion debe ser number o null" });
+    }
+
+    if (
+      descripcion !== null &&
+      descripcion !== undefined &&
+      typeof descripcion !== "string"
+    ) {
+      return res
+        .status(400)
+        .json({ error: "descripcion debe ser string o null" });
+    }
+
+    const apptRef = admin
+      .firestore()
+      .collection("appointments")
+      .doc(String(appointmentsId));
+    const apptSnap = await apptRef.get();
+    if (!apptSnap.exists) {
+      return res.status(404).json({ error: "Cita no encontrada" });
+    }
+    const apptData = apptSnap.data() || {};
+
+    const requester = req.user || {};
+    if (requester.role === "user") {
+      if (Number(apptData.userId) !== Number(requester.userId)) {
+        return res
+          .status(403)
+          .json({ error: "No puedes calificar citas de otro cliente" });
+      }
+    } else if (requester.role === "business") {
+      if (Number(apptData.businessId) !== Number(requester.userId)) {
+        return res
+          .status(403)
+          .json({ error: "No puedes calificar citas de otro negocio" });
+      }
+    } else if (requester.role === "staff") {
+      if (
+        String(apptData.staffAppoinments ?? apptData.staffId ?? "") !==
+        String(requester.userId)
+      ) {
+        return res
+          .status(403)
+          .json({ error: "No puedes calificar citas de otro staff" });
+      }
+    }
+
+    const result = await updateAppointmentCalificacion(
+      appointmentsId,
+      calificacion,
+      descripcion,
+    );
+    return res.status(200).json({
+      message: "Calificación actualizada exitosamente",
+      ...result,
+    });
+  } catch (error) {
+    const msg = error?.message || "Error actualizando calificación";
+    if (/no encontrada/i.test(msg)) {
+      return res.status(404).json({ error: msg });
+    }
+    return res.status(500).json({ error: msg });
+  }
+};
+
+export const rescheduleAppointmentController = async (req, res) => {
+  try {
+    const { appintmentId } = req.params;
+    const { date, horario } = req.body || {};
+
+    if (!appintmentId) {
+      return res
+        .status(400)
+        .json({ error: "Parámetro appintmentId es requerido" });
+    }
+    if (!date || !horario) {
+      return res
+        .status(400)
+        .json({ error: "Campos requeridos: date, horario" });
+    }
+
+    const requester = req.user || {};
+    const requesterRole = requester.role;
+    const requesterId = requester.id;
+
+    if (requesterRole === "staff") {
+      if (!requesterId) {
+        return res
+          .status(403)
+          .json({ error: "No tienes permisos para reprogramar esta cita" });
+      }
+
+      const apptRef = admin
+        .firestore()
+        .collection("appointments")
+        .doc(String(appintmentId));
+      const apptSnap = await apptRef.get();
+      if (!apptSnap.exists) {
+        return res.status(404).json({ error: "Cita no encontrada" });
+      }
+      const apptData = apptSnap.data() || {};
+      const ownerStaffId = String(
+        apptData.staffAppoinments ?? apptData.staffId ?? "",
+      );
+      if (ownerStaffId !== String(requesterId)) {
+        return res.status(403).json({
+          error: "No puedes reprogramar citas de otro miembro del staff",
+        });
+      }
+
+      const staffSnap = await admin
+        .firestore()
+        .collection("staff")
+        .doc(String(requesterId))
+        .get();
+      if (!staffSnap.exists) {
+        return res
+          .status(403)
+          .json({ error: "Staff no encontrado para el usuario autenticado" });
+      }
+      const staffData = staffSnap.data() || {};
+      const perms = staffData.permissions || {};
+      const canManualAppointments = Boolean(perms.manualAppointments);
+      if (!canManualAppointments) {
+        return res.status(403).json({
+          error: "No tienes permisos para crear, editar o eliminar citas",
+        });
+      }
+    }
+
+    const result = await updateAppointmentReschedule(appintmentId, date, horario);
+    return res.status(200).json({
+      message: "Cita reprogramada exitosamente",
+      ...result,
+    });
+  } catch (error) {
+    const msg = error?.message || "Error reprogramando cita";
+    if (/no encontrada/i.test(msg)) {
+      return res.status(404).json({ error: msg });
+    }
+    if (/inválida|inválido|formato/i.test(msg)) {
+      return res.status(400).json({ error: msg });
+    }
+    return res.status(500).json({ error: msg });
+  }
+};
+
 export const listAppointmentsByBusiness = async (req, res) => {
   try {
     const { businessId } = req.params;
@@ -357,6 +525,36 @@ export const listClientsByBusinessController = async (req, res) => {
     return res.status(200).json(payload);
   } catch (error) {
     const msg = error?.message || "Error listando clientes";
+    return res.status(500).json({ error: msg });
+  }
+};
+
+export const listAppointmentsByClientIdController = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    if (!clientId) {
+      return res.status(400).json({ error: "Parámetro clientId es requerido" });
+    }
+
+    const clientIdNum = Number(clientId);
+    if (!Number.isFinite(clientIdNum)) {
+      return res.status(400).json({ error: "clientId debe ser numérico" });
+    }
+
+    const requester = req.user || {};
+    if (
+      requester.role === "user" &&
+      Number(requester.userId) !== clientIdNum
+    ) {
+      return res
+        .status(403)
+        .json({ error: "No puedes ver citas de otro cliente" });
+    }
+
+    const results = await getAppointmentsByClientId(clientIdNum);
+    return res.status(200).json({ appointments: results });
+  } catch (error) {
+    const msg = error?.message || "Error obteniendo citas por clientId";
     return res.status(500).json({ error: msg });
   }
 };

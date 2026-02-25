@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, getAllBusinesses, deleteBusinessUser } from "../services/firestoreService.js";
+import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, getAllClients, getClientById, updateClientById, deleteClientById, getAllBusinesses, deleteBusinessUser } from "../services/firestoreService.js";
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
@@ -382,11 +382,19 @@ export const configureBusiness = async (req, res) => {
     const id = req.body.id ?? req.body.businessId;
     const name = req.body.name;
     const description = req.body.description;
+    let direccion = req.body?.direccion;
     let staff = [];
     try {
       staff = req.body.staff ? JSON.parse(req.body.staff) : [];
     } catch (e) {
       staff = req.body.staff || [];
+    }
+    if (typeof direccion === "string") {
+      try {
+        direccion = JSON.parse(direccion);
+      } catch (e) {
+        direccion = null;
+      }
     }
 
     console.log('ℹ️ [configure-business] parsed summary', {
@@ -438,6 +446,19 @@ export const configureBusiness = async (req, res) => {
     const updateData = { isInitialSetupComplete: true };
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
+    if (direccion !== undefined) {
+      if (!direccion || typeof direccion !== "object" || Array.isArray(direccion)) {
+        return res.status(400).json({ error: "direccion debe ser un objeto válido" });
+      }
+      const address = String(direccion.address ?? "").trim();
+      if (!address) {
+        return res.status(400).json({ error: "direccion.address es requerido" });
+      }
+      updateData.direccion = {
+        ...direccion,
+        address,
+      };
+    }
     if (avatarUrl) updateData.avatar = avatarUrl;
     if (bannerUrl) updateData.banner = bannerUrl;
 
@@ -558,6 +579,99 @@ export const getUsers = async (req, res) => {
   } catch (error) {
     console.error("Error obteniendo usuarios:", error);
     return res.status(500).json({ error: "Error al obtener los usuarios registrados" });
+  }
+};
+
+export const getClients = async (req, res) => {
+  try {
+    const users = await getAllClients();
+    return res.status(200).json({ users, total: users.length });
+  } catch (error) {
+    console.error("Error obteniendo clientes:", error);
+    return res.status(500).json({ error: "Error al obtener clientes" });
+  }
+};
+
+export const getClient = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    if (!clientId) {
+      return res.status(400).json({ error: "clientId es requerido" });
+    }
+    if (String(clientId).toLowerCase() === "all") {
+      const users = await getAllClients();
+      return res.status(200).json({ users, total: users.length });
+    }
+
+    const user = await getClientById(clientId);
+    return res.status(200).json({ users: [user], total: 1 });
+  } catch (error) {
+    const msg = error?.message || "Error al obtener cliente";
+    const code = /no encontrado/i.test(msg)
+      ? 404
+      : /requerido/i.test(msg)
+        ? 400
+        : 500;
+    return res.status(code).json({ error: msg });
+  }
+};
+
+export const updateClient = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { nombre, apellido, numero } = req.body || {};
+    if (!clientId) {
+      return res.status(400).json({ error: "clientId es requerido" });
+    }
+    if (numero !== undefined && numero !== null && !/^\d+$/.test(String(numero))) {
+      return res.status(400).json({ error: "Numero debe contener solo digitos" });
+    }
+
+    let avatar = undefined;
+    if (req.files?.avatar && req.files.avatar[0]) {
+      avatar = await uploadImageToFirebase(req.files.avatar[0], clientId);
+    } else if (req.files?.image && req.files.image[0]) {
+      avatar = await uploadImageToFirebase(req.files.image[0], clientId);
+    } else if (req.body?.avatarBase64) {
+      avatar = await uploadBase64ToFirebase(req.body.avatarBase64, clientId);
+    } else if (req.body?.avatarUrl) {
+      try {
+        avatar = await uploadFromUrlToFirebase(req.body.avatarUrl, clientId);
+      } catch (e) {
+        console.error("Error subiendo avatar cliente desde URL:", e);
+      }
+    }
+
+    const user = await updateClientById(clientId, {
+      nombre,
+      apellido,
+      numero,
+      avatar,
+    });
+    return res.status(200).json({ user });
+  } catch (error) {
+    const msg = error?.message || "Error actualizando cliente";
+    const code = /no encontrado/i.test(msg)
+      ? 404
+      : /required|requerido|digitos|inválido|invalido/i.test(msg)
+        ? 400
+        : 500;
+    return res.status(code).json({ error: msg });
+  }
+};
+
+export const deleteClient = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    if (!clientId) {
+      return res.status(400).json({ error: "clientId es requerido" });
+    }
+    const result = await deleteClientById(clientId);
+    return res.status(200).json(result);
+  } catch (error) {
+    const msg = error?.message || "Error eliminando cliente";
+    const code = /no encontrado/i.test(msg) ? 404 : 500;
+    return res.status(code).json({ error: msg });
   }
 };
 

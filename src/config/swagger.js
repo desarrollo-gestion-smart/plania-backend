@@ -832,6 +832,7 @@ const options = {
       { name: "Auth - Usuarios", description: "Registro, verificación y login de usuarios de la app" },
       { name: "Auth - Negocios", description: "Registro, verificación y login de cuentas de negocio" },
       { name: "Auth - Staff", description: "Login de personal" },
+      {name: "Clientes", description: "Gestión de clientes (protegido)"},
       { name: "Negocios", description: "Gestión de negocios (protegido)" },
       { name: "Staff", description: "Gestión de personal (protegido)" },
       { name: "Citas", description: "Gestión de citas (protegido)" },
@@ -1046,6 +1047,61 @@ const options = {
           },
         },
       },
+      "/services-general": {
+        get: {
+          tags: ["Servicios"],
+          summary: "Listar servicios en general",
+          description: "Listado de servicios en General",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "page", in: "query", required: false, schema: { type: "number", default: 1 }, description: "Página de negocios" },
+            { name: "limit", in: "query", required: false, schema: { type: "number", default: 10 }, description: "Cantidad de negocios por página" },
+          ],
+          responses: {
+            200: {
+              description: "Servicios agrupados por negocio",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      businesses: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            businessId: { type: "number" },
+                            businessName: { type: "string" },
+                            businessAvatar: { type: "string", nullable: true },
+                            businessBanner: { type: "string", nullable: true },
+                            total: { type: "number" },
+                            services: {
+                              type: "array",
+                              items: { $ref: "#/components/schemas/Service" },
+                            },
+                          },
+                        },
+                      },
+                      pagination: {
+                        type: "object",
+                        properties: {
+                          page: { type: "number" },
+                          limit: { type: "number" },
+                          totalBusinesses: { type: "number" },
+                          totalPages: { type: "number" },
+                          hasNextPage: { type: "boolean" },
+                          hasPrevPage: { type: "boolean" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: "No autenticado" },
+          },
+        },
+      },
       "/service-types/{businessId}": {
         get: {
           tags: ["Servicios"],
@@ -1218,6 +1274,143 @@ const options = {
           },
         },
       },
+      // ═══════════════════════════════════════════════════════════
+      //  CLIENTES (protegido)
+      // ═══════════════════════════════════════════════════════════
+      "/get-client/{clientId}": {
+        get: {
+          tags: ["Clientes"],
+          summary: "Obtener clientes",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "clientId", in: "path", required: true, schema: { type: "string" }, description: "ID del cliente o 'all' para listar todos" },
+          ],
+          responses: {
+            200: {
+              description: "Listado de clientes",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      users: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "number" },
+                            nombre: { type: "string" },
+                            apellido: { type: "string" },
+                            avatar: { type: "string", nullable: true },
+                            numero: { type: "string" },
+                          },
+                        },
+                      },
+                      total: { type: "number" },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Cliente no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/clients/{clientId}": {
+        patch: {
+          tags: ["Clientes"],
+          summary: "Modificar cliente",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "clientId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: false,
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    nombre: { type: "string" },
+                    apellido: { type: "string" },
+                    numero: { type: "string" },
+                    avatar: { type: "string", format: "binary" },
+                    image: { type: "string", format: "binary" },
+                    avatarBase64: { type: "string" },
+                    avatarUrl: { type: "string" },
+                  },
+                },
+              },
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    nombre: { type: "string" },
+                    apellido: { type: "string" },
+                    numero: { type: "string" },
+                    avatarBase64: { type: "string" },
+                    avatarUrl: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Cliente modificado",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      user: {
+                        type: "object",
+                        properties: {
+                          id: { type: "number" },
+                          nombre: { type: "string" },
+                          apellido: { type: "string" },
+                          avatar: { type: "string", nullable: true },
+                          numero: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Cliente no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+        delete: {
+          tags: ["Clientes"],
+          summary: "Eliminar cliente",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "clientId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            200: {
+              description: "Cliente eliminado",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      id: { type: "number" },
+                      deleted: { type: "boolean" },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Cliente no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
 
       // ═══════════════════════════════════════════════════════════
       // NEGOCIOS (protegido)
@@ -1245,6 +1438,18 @@ const options = {
                     bannerBase64: { type: "string" },
                     avatarUrl: { type: "string" },
                     bannerUrl: { type: "string" },
+                    direccion: {
+                      type: "object",
+                      required: ["address"],
+                      properties: {
+                        address: { type: "string", example: "Av. Siempre Viva 742" },
+                        altura: { type: "string", nullable: true, example: "742" },
+                        codigoPostal: { type: "string", nullable: true, example: "1000" },
+                        ciudad: { type: "string", nullable: true, example: "Buenos Aires" },
+                        provincia: { type: "string", nullable: true, example: "CABA" },
+                        pais: { type: "string", nullable: true, example: "Argentina" },
+                      },
+                    },
                     staff: { type: "string", description: "JSON array de staff" },
                     staffAvatars: { type: "array", items: { type: "string", format: "binary" } },
                   },
@@ -1281,6 +1486,18 @@ const options = {
                     bannerBase64: { type: "string" },
                     avatarUrl: { type: "string" },
                     bannerUrl: { type: "string" },
+                    direccion: {
+                      type: "object",
+                      required: ["address"],
+                      properties: {
+                        address: { type: "string", example: "Av. Siempre Viva 742" },
+                        altura: { type: "string", nullable: true, example: "742" },
+                        codigoPostal: { type: "string", nullable: true, example: "1000" },
+                        ciudad: { type: "string", nullable: true, example: "Buenos Aires" },
+                        provincia: { type: "string", nullable: true, example: "CABA" },
+                        pais: { type: "string", nullable: true, example: "Argentina" },
+                      },
+                    },
                     staff: { type: "string", description: "JSON array de staff" },
                     staffAvatars: { type: "array", items: { type: "string", format: "binary" } },
                   },
@@ -1303,7 +1520,39 @@ const options = {
           security: [{ bearerAuth: [] }],
           parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" } }],
           responses: {
-            200: { description: "Información del negocio" },
+            200: {
+              description: "Información del negocio",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      id: { type: "number" },
+                      nombre: { type: "string" },
+                      correo: { type: "string" },
+                      numero: { type: "string" },
+                      avatar: { type: "string", nullable: true },
+                      banner: { type: "string", nullable: true },
+                      name: { type: "string" },
+                      description: { type: "string" },
+                      direccion: {
+                        type: "object",
+                        nullable: true,
+                        properties: {
+                          address: { type: "string" },
+                          altura: { type: "string", nullable: true },
+                          codigoPostal: { type: "string", nullable: true },
+                          ciudad: { type: "string", nullable: true },
+                          provincia: { type: "string", nullable: true },
+                          pais: { type: "string", nullable: true },
+                        },
+                      },
+                      isInitialSetupComplete: { type: "boolean" },
+                    },
+                  },
+                },
+              },
+            },
             401: { description: "No autenticado" },
             404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
@@ -1712,6 +1961,18 @@ const options = {
                             staffAppointmentsHour: { type: "string" },
                             serviceType: { type: "string" },
                             serviceDuration: { type: "number", nullable: true },
+                            direccion: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                address: { type: "string" },
+                                altura: { type: "string", nullable: true },
+                                codigoPostal: { type: "string", nullable: true },
+                                ciudad: { type: "string", nullable: true },
+                                provincia: { type: "string", nullable: true },
+                                pais: { type: "string", nullable: true },
+                              },
+                            },
                             state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
                             staffNombre: { type: "string" },
                             staffApellido: { type: "string" },
@@ -1732,17 +1993,74 @@ const options = {
           },
         },
       },
+      "/appoiments/{clientId}": {
+        get: {
+          tags: ["Citas"],
+          summary: "Listado de citas por cliente",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "clientId", in: "path", required: true, schema: { type: "string" }, description: "userId del cliente" }],
+          responses: {
+            200: {
+              description: "Lista de citas por cliente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      appointments: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            businessId: { type: "number" },
+                            idappointment: { type: "number" },
+                            staffdates: { type: "string" },
+                            staffAppoinments: { type: "number" },
+                            staffAppointmentsHour: { type: "string" },
+                            serviceType: { type: "string" },
+                            serviceDuration: { type: "number", nullable: true },
+                            direccion: {
+                              type: "object",
+                              nullable: true,
+                              properties: {
+                                address: { type: "string" },
+                                altura: { type: "string", nullable: true },
+                                codigoPostal: { type: "string", nullable: true },
+                                ciudad: { type: "string", nullable: true },
+                                provincia: { type: "string", nullable: true },
+                                pais: { type: "string", nullable: true },
+                              },
+                            },
+                            state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
+                            status: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
+                            userId: { type: "number", nullable: true },
+                            userNombre: { type: "string" },
+                            userNumero: { type: "string", nullable: true },
+                            userAvatar: { type: "string", nullable: true },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+          },
+        },
+      },
       "/appointments/{businessId}/list-client": {
         get: {
           tags: ["Citas"],
-          summary: "Listar clientes segmentados",
+          summary: "Listar clientes por tipos de visita",
           description:
             "Agrupa clientes por cantidad de citas en el negocio: mejores (más de 3 citas), noTeVisitan (3 citas), noHanVuelto (1 o 2 citas). Todos incluye todos los clientes con al menos una cita. Cada item tiene userId, userName, userAvatar y staffdates (fecha más reciente del cliente).",
           security: [{ bearerAuth: [] }],
           parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" }, description: "ID del negocio" }],
           responses: {
             200: {
-              description: "Lista de clientes por segmento",
+              description: "Lista de clientes por tipos de visita",
               content: {
                 "application/json": {
                   schema: {
@@ -1826,6 +2144,52 @@ const options = {
           },
         },
       },
+      "/appoiments/{appintmentId}/reschedule": {
+        patch: {
+          tags: ["Citas"],
+          summary: "Reprogramar cita",
+          description: "Actualiza la fecha y el horario de una cita.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "appintmentId", in: "path", required: true, schema: { type: "string" }, description: "ID de la cita" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["date", "horario"],
+                  properties: {
+                    date: { type: "string", example: "24/02/2026", description: "Formato dd/MM/YYYY" },
+                    horario: { type: "string", example: "14:30", description: "Formato HH:mm" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Cita reprogramada",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      idappointment: { type: "number" },
+                      date: { type: "string" },
+                      horario: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+            404: { description: "Cita no encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
       "/appointments/{appointmentId}/timer": {
         get: {
           tags: ["Citas"],
@@ -1861,7 +2225,7 @@ const options = {
           },
         },
       },
-
+     
       // ═══════════════════════════════════════════════════════════
       // UPLOADS
       // ═══════════════════════════════════════════════════════════
