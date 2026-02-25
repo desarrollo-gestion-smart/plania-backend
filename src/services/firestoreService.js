@@ -2792,9 +2792,7 @@ export const getExpenseCategories = () => {
     { id: 2, name: "Pago de comisiones" },
     { id: 3, name: "Utilidades de servicios" },
     { id: 4, name: "Utilidades de productos" },
-    { id: 5, name: "Tasa de ocupación" },
     { id: 6, name: "Valor de facturas del mes" },
-    { id: 7, name: "Cantidad de facturas del mes" },
   ];
 };
 
