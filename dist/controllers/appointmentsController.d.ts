@@ -1,0 +1,10 @@
+export declare const createAppointmentController: (req: any, res: any) => Promise<any>;
+export declare const updateAppointmentStateController: (req: any, res: any) => Promise<any>;
+export declare const updateAppointmentCalificacionController: (req: any, res: any) => Promise<any>;
+export declare const rescheduleAppointmentController: (req: any, res: any) => Promise<any>;
+export declare const listAppointmentsByBusiness: (req: any, res: any) => Promise<any>;
+export declare const listClientsByBusinessController: (req: any, res: any) => Promise<any>;
+export declare const listAppointmentsByClientIdController: (req: any, res: any) => Promise<any>;
+export declare const appointmentTimerStreamController: (req: any, res: any) => Promise<any>;
+export declare const deleteAppointmentController: (req: any, res: any) => Promise<any>;
+//# sourceMappingURL=appointmentsController.d.ts.map

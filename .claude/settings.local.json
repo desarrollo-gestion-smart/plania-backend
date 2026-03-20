@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find src:*)"
+      "Bash(find src:*)",
+      "Bash(npm run:*)",
+      "Bash(git add:*)"
     ]
   }
 }

@@ -1,0 +1,9 @@
+export declare const addStaffMember: (req: any, res: any) => Promise<any>;
+export declare const getStaff: (req: any, res: any) => Promise<any>;
+export declare const getStaffIds: (req: any, res: any) => Promise<any>;
+export declare const loginStaffMember: (req: any, res: any) => Promise<any>;
+export declare const updateStaffMember: (req: any, res: any) => Promise<any>;
+export declare const getStaffName: (req: any, res: any) => Promise<any>;
+export declare const uploadStaffAvatar: (req: any, res: any) => Promise<any>;
+export declare const setStaffServicesController: (req: any, res: any) => Promise<any>;
+//# sourceMappingURL=staffController.d.ts.map
