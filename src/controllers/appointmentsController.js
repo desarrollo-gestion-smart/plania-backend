@@ -5,6 +5,7 @@ import {
   getAppointmentsByClientId,
   getListClientsByBusiness,
   updateAppointmentCalificacion,
+  deleteAppointment,
   updateAppointmentReschedule,
   updateAppointmentState,
   APPOINTMENT_STATES,
@@ -15,6 +16,12 @@ export const createAppointmentController = async (req, res) => {
     const { businessId, staffId, date, horario, calificacion } = req.body || {};
     const bodyUserId = req.body?.userId ?? req.body?.user;
     const serviceId = req.body?.serviceId ?? req.body?.service;
+    if (req.body?.serviceDuration !== undefined) {
+      return res.status(400).json({
+        error:
+          "serviceDuration no debe enviarse en el body. La duración se toma del servicio",
+      });
+    }
 
     if (!businessId || !staffId || !date || !horario || !bodyUserId) {
       return res.status(400).json({
@@ -675,6 +682,86 @@ export const appointmentTimerStreamController = async (req, res) => {
     });
   } catch (error) {
     const msg = error?.message || "Error iniciando cronómetro";
+    return res.status(500).json({ error: msg });
+  }
+};
+
+export const deleteAppointmentController = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    if (!appointmentId) {
+      return res
+        .status(400)
+        .json({ error: "Parámetro appointmentId es requerido" });
+    }
+
+    const requester = req.user || {};
+    const requesterRole = requester.role;
+    const requesterId = requester.id;
+
+    const apptRef = admin
+      .firestore()
+      .collection("appointments")
+      .doc(String(appointmentId));
+    const apptSnap = await apptRef.get();
+    if (!apptSnap.exists) {
+      return res.status(404).json({ error: "Cita no encontrada" });
+    }
+    const apptData = apptSnap.data() || {};
+
+    if (requesterRole === "staff") {
+      if (!requesterId) {
+        return res
+          .status(403)
+          .json({ error: "No tienes permisos para eliminar esta cita" });
+      }
+
+      const ownerStaffId = String(
+        apptData.staffAppoinments ?? apptData.staffId ?? "",
+      );
+      if (ownerStaffId !== String(requesterId)) {
+        return res.status(403).json({
+          error: "No puedes eliminar citas de otro miembro del staff",
+        });
+      }
+
+      const staffSnap = await admin
+        .firestore()
+        .collection("staff")
+        .doc(String(requesterId))
+        .get();
+      if (!staffSnap.exists) {
+        return res
+          .status(403)
+          .json({ error: "Staff no encontrado para el usuario autenticado" });
+      }
+      const staffData = staffSnap.data() || {};
+      const perms = staffData.permissions || {};
+      const canManualAppointments = Boolean(perms.manualAppointments);
+      if (!canManualAppointments) {
+        return res.status(403).json({
+          error: "No tienes permisos para crear, editar o eliminar citas",
+        });
+      }
+    } else if (requesterRole === "business") {
+      const requesterBusinessId = requester.userId ?? requester.id;
+      if (Number(apptData.businessId) !== Number(requesterBusinessId)) {
+        return res
+          .status(403)
+          .json({ error: "No puedes eliminar citas de otro negocio" });
+      }
+    }
+
+    const result = await deleteAppointment(appointmentId);
+    return res.status(200).json({
+      message: "Cita eliminada exitosamente",
+      ...result,
+    });
+  } catch (error) {
+    const msg = error?.message || "Error eliminando cita";
+    if (/no encontrada/i.test(msg)) {
+      return res.status(404).json({ error: msg });
+    }
     return res.status(500).json({ error: msg });
   }
 };

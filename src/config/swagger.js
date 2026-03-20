@@ -1,4 +1,9 @@
 import swaggerJsdoc from "swagger-jsdoc";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const serverUrl = process.env.SERVER_URL || "http://localhost:3000";
 
 const options = {
   definition: {
@@ -10,8 +15,12 @@ const options = {
     },
     servers: [
       {
+        url: `${serverUrl}/api`,
+        description: "Production server",
+      },
+      {
         url: "/api",
-        description: "API base path",
+        description: "API base path (local development)",
       },
     ],
     components: {
@@ -778,7 +787,6 @@ const options = {
             staffId: { type: "string", example: "5" },
             userId: { type: "number", example: 42, description: "ID de usuario de la app" },
             service: { type: "number", example: 1, description: "Service ID seleccionado" },
-            serviceDuration: { type: "number", description: "Si no se envía y service está definido, se toma del servicio", example: 30 },
             date: { type: "string", example: "15/03/2026", description: "Formato dd/MM/YYYY" },
             horario: { type: "string", example: "10:00" },
             calificacion: { type: "number", nullable: true, example: 5 },
@@ -2140,6 +2148,35 @@ const options = {
             400: { description: "Estado inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             401: { description: "No autenticado" },
             403: { description: "Sin permisos" },
+            404: { description: "Cita no encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/appointments/{appointmentId}": {
+        delete: {
+          tags: ["Citas"],
+          summary: "Eliminar una cita",
+          description: "Elimina una cita por ID. Roles permitidos: business, staff.",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "appointmentId", in: "path", required: true, schema: { type: "string" }, description: "ID de la cita" }],
+          responses: {
+            200: {
+              description: "Cita eliminada",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string", example: "Cita eliminada exitosamente" },
+                      idappointment: { type: "number" },
+                      deleted: { type: "boolean" },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             404: { description: "Cita no encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },

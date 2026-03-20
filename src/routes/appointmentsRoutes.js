@@ -1,5 +1,5 @@
 import express from "express";
-import { createAppointmentController, listAppointmentsByBusiness, listClientsByBusinessController, listAppointmentsByClientIdController, updateAppointmentStateController, updateAppointmentCalificacionController, rescheduleAppointmentController, appointmentTimerStreamController } from "../controllers/appointmentsController.js";
+import { createAppointmentController, listAppointmentsByBusiness, listClientsByBusinessController, listAppointmentsByClientIdController, updateAppointmentStateController, updateAppointmentCalificacionController, rescheduleAppointmentController, appointmentTimerStreamController, deleteAppointmentController } from "../controllers/appointmentsController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -28,5 +28,8 @@ router.patch("/appoiments/:appintmentId/reschedule", authenticateToken, authoriz
 
 // Cronómetro SSE para una cita (business o staff)
 router.get("/appointments/:appointmentId/timer", authenticateToken, authorizeRoles("business", "staff"), appointmentTimerStreamController);
+
+// Eliminar una cita (business o staff)
+router.delete("/appointments/:appointmentId", authenticateToken, authorizeRoles("business", "staff"), deleteAppointmentController);
 
 export default router;

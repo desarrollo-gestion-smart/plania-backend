@@ -862,8 +862,6 @@ export const createAppointment = async ({
   staffId,
   userId,
   serviceId,
-  serviceType,
-  serviceDuration,
   date,
   horario,
   calificacion,
@@ -875,10 +873,8 @@ export const createAppointment = async ({
       );
     }
 
-    let finalDuration =
-      typeof serviceDuration === "number" ? serviceDuration : undefined;
-    let finalType =
-      typeof serviceType === "string" ? String(serviceType) : undefined;
+    let finalDuration = undefined;
+    let finalType = undefined;
 
     // Validate business exists
     const businessQuery = await db
@@ -938,18 +934,6 @@ export const createAppointment = async ({
         svcData.duration > 0
       ) {
         finalDuration = svcData.duration;
-      }
-    } else if (finalDuration === undefined && finalType) {
-      const svcSnap = await db
-        .collection("services")
-        .where("businessId", "==", Number(businessId))
-        .where("type", "==", String(finalType))
-        .get();
-      if (!svcSnap.empty) {
-        const svc = svcSnap.docs[0].data();
-        if (typeof svc.duration === "number" && svc.duration > 0) {
-          finalDuration = svc.duration;
-        }
       }
     }
     if (
@@ -1219,6 +1203,27 @@ export const updateAppointmentCalificacion = async (
     };
   } catch (error) {
     console.error("Firestore error actualizando calificación de cita:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const deleteAppointment = async (appointmentId) => {
+  try {
+    const id = String(appointmentId || "").trim();
+    if (!id) {
+      throw new Error("ID de cita inválido");
+    }
+
+    const docRef = db.collection("appointments").doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      throw new Error("Cita no encontrada");
+    }
+
+    await docRef.delete();
+    return { idappointment: Number(id), deleted: true };
+  } catch (error) {
+    console.error("Firestore error eliminando cita:", error);
     throw new Error(error.message);
   }
 };
