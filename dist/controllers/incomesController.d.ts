@@ -1,9 +1,0 @@
-export declare const createIncomeController: (req: any, res: any) => Promise<any>;
-export declare const listIncomesController: (req: any, res: any) => Promise<any>;
-export declare const updateIncomeController: (req: any, res: any) => Promise<any>;
-export declare const deleteIncomeController: (req: any, res: any) => Promise<any>;
-export declare const deleteExpenseController: (req: any, res: any) => Promise<any>;
-export declare const getResultsController: (req: any, res: any) => Promise<any>;
-export declare const getResultsMostUsedTypesController: (req: any, res: any) => Promise<any>;
-export declare const listIncomeCategoriesController: (req: any, res: any) => Promise<any>;
-//# sourceMappingURL=incomesController.d.ts.map
