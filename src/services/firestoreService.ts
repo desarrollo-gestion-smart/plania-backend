@@ -1867,6 +1867,7 @@ export const getBusinessById = async (businessId) => {
       numero: data.numero ?? "",
       avatar: data.avatar ?? null,
       banner: data.banner ?? null,
+      images: Array.isArray(data.images) ? data.images : [],
       name: data.name ?? "",
       description: data.description ?? "",
       direccion:

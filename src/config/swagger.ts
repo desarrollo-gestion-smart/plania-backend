@@ -1579,6 +1579,7 @@ const options = {
                       numero: { type: "string" },
                       avatar: { type: "string", nullable: true },
                       banner: { type: "string", nullable: true },
+                      images: { type: "array", items: { type: "string" }, description: "URLs de imágenes adicionales del negocio" },
                       name: { type: "string" },
                       description: { type: "string" },
                       direccion: {
