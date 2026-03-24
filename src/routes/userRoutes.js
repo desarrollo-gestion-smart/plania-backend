@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getAllBusinessesInfo } from "../controllers/userController.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -39,10 +39,14 @@ router.post(
     { name: "avatar", maxCount: 1 },
     { name: "image", maxCount: 1 }, // alias para avatar
     { name: "banner", maxCount: 1 },
+    { name: "images" },
     { name: "staffAvatars" }
   ]),
   configureBusiness
 );
+
+// GET /api/get-businesses
+router.get("/get-businesses", getAllBusinessesInfo);
 
 // GET /api/get-business/:businessId
 router.get("/get-business/:businessId", getBusinessInfo);

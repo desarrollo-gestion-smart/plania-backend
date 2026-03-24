@@ -762,6 +762,30 @@ export const getStaffNameById = async (staffId) => {
   }
 };
 
+export const getAllBusinesses = async () => {
+  try {
+    const snap = await db.collection("user-business").get();
+    return snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: data.id ?? Number(doc.id),
+        nombre: data.nombre ?? '',
+        correo: data.correo ?? '',
+        numero: data.numero ?? '',
+        avatar: data.avatar ?? null,
+        banner: data.banner ?? null,
+        images: Array.isArray(data.images) ? data.images : [],
+        name: data.name ?? '',
+        description: data.description ?? '',
+        isInitialSetupComplete: !!data.isInitialSetupComplete,
+      };
+    });
+  } catch (error) {
+    console.error("Firestore error obteniendo negocios:", error);
+    throw new Error(error.message);
+  }
+};
+
 export const getBusinessById = async (businessId) => {
   try {
     const doc = await db.collection("user-business").doc(String(businessId)).get();
@@ -777,6 +801,7 @@ export const getBusinessById = async (businessId) => {
       numero: data.numero ?? '',
       avatar: data.avatar ?? null,
       banner: data.banner ?? null,
+      images: Array.isArray(data.images) ? data.images : [],
       name: data.name ?? '',
       description: data.description ?? '',
       isInitialSetupComplete: !!data.isInitialSetupComplete,

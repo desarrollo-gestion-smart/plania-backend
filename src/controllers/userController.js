@@ -3,7 +3,7 @@ import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser,
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
-import { getBusinessById } from "../services/firestoreService.js";
+import { getBusinessById, getAllBusinesses } from "../services/firestoreService.js";
 
 const db = admin.firestore();
 
@@ -261,6 +261,14 @@ export const configureBusiness = async (req, res) => {
     const id = req.body.id ?? req.body.businessId;
     const name = req.body.name;
     const description = req.body.description;
+    let direccion = undefined;
+    if (req.body.direccion !== undefined) {
+      try {
+        direccion = typeof req.body.direccion === 'string' ? JSON.parse(req.body.direccion) : req.body.direccion;
+      } catch (e) {
+        direccion = req.body.direccion;
+      }
+    }
     let staff = [];
     try {
       staff = req.body.staff ? JSON.parse(req.body.staff) : [];
@@ -275,6 +283,7 @@ export const configureBusiness = async (req, res) => {
       hasBannerBase64: !!req.body?.bannerBase64,
       hasAvatarUrl: !!req.body?.avatarUrl,
       hasBannerUrl: !!req.body?.bannerUrl,
+      imagesCount: req.files?.images?.length ?? 0,
       staffCount: Array.isArray(staff) ? staff.length : 0,
     });
 
@@ -284,6 +293,7 @@ export const configureBusiness = async (req, res) => {
 
     let avatarUrl = null;
     let bannerUrl = null;
+    let imageUrls = [];
 
     // Avatar: archivo, base64 o URL
     if (req.files?.avatar && req.files.avatar[0]) {
@@ -314,11 +324,19 @@ export const configureBusiness = async (req, res) => {
       }
     }
 
+    // Images: array de archivos
+    if (req.files?.images && req.files.images.length > 0) {
+      imageUrls = await Promise.all(
+        req.files.images.map((file) => uploadImageToFirebase(file, id))
+      );
+    }
+
     const updateData = { isInitialSetupComplete: true };
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (avatarUrl) updateData.avatar = avatarUrl;
     if (bannerUrl) updateData.banner = bannerUrl;
+    if (imageUrls.length > 0) updateData.images = imageUrls;
 
     const userQuery = await db.collection("user-business").where("id", "==", Number(id)).get();
     if (userQuery.empty) {
@@ -352,13 +370,23 @@ export const configureBusiness = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ message: "Business configured successfully", avatarUrl, bannerUrl, staff: staffCreated });
+    return res.status(200).json({ message: "Business configured successfully", avatarUrl, bannerUrl, images: imageUrls, staff: staffCreated });
   } catch (error) {
     console.error("Error configuring business:", error);
     return res.status(500).json({ error: "Error configuring business" });
   }
 };
 
+
+export const getAllBusinessesInfo = async (req, res) => {
+  try {
+    const businesses = await getAllBusinesses();
+    return res.status(200).json(businesses);
+  } catch (error) {
+    console.error("Error en getAllBusinessesInfo:", error);
+    return res.status(500).json({ error: "Error al obtener los negocios" });
+  }
+};
 
 export const getBusinessInfo = async (req, res) => {
   try {
