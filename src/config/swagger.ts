@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const serverUrl = process.env.SERVER_URL || "http://localhost:3000";
+const serverUrl = process.env.SERVER_URL || "http://3.80.174.154";
 
 const options = {
   definition: {

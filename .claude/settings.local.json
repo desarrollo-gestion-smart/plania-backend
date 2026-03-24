@@ -3,7 +3,9 @@
     "allow": [
       "Bash(find src:*)",
       "Bash(npm run:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)"
     ]
   }
 }

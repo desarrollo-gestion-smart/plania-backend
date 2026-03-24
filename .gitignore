@@ -1,9 +1,8 @@
 node_modules
+dist/
 
 # Credenciales y secretos (nunca subir al repo)
 .env
 firebase-service-account.json
 .env.local
 .env.*.local
-node_modules
-firebase-service-account.json
