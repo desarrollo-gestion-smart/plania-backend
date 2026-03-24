@@ -79,10 +79,10 @@ export const loginBusiness = async (req, res) => {
       const tokens = generateToken({ id: user.id, role: "user" });
       const refresh = generateRefreshToken({ id: user.id, role: "user" });
       const decodedR = verifyRefreshToken(refresh.refreshToken);
-      await admin.firestore().collection("refreshTokens").doc(decodedR.jti).set({
+      await admin.firestore().collection("refreshTokens").doc(decodedR.jti!).set({
         userId: user.id,
         role: "user",
-        expiresAt: admin.firestore.Timestamp.fromMillis(decodedR.exp * 1000),
+        expiresAt: admin.firestore.Timestamp.fromMillis((decodedR.exp ?? 0) * 1000),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         revoked: false,
       });
@@ -91,7 +91,7 @@ export const loginBusiness = async (req, res) => {
         httpOnly: true,
         secure,
         sameSite: secure ? "none" : "lax",
-        expires: new Date(decodedR.exp * 1000),
+        expires: new Date((decodedR.exp ?? 0) * 1000),
       });
       return res.status(200).json({
         message: "Login exitoso",
@@ -110,10 +110,10 @@ export const loginBusiness = async (req, res) => {
     const tokens = generateToken({ id: business.id, role: "business" });
     const refresh = generateRefreshToken({ id: business.id, role: "business" });
     const decodedR = verifyRefreshToken(refresh.refreshToken);
-    await admin.firestore().collection("refreshTokens").doc(decodedR.jti).set({
+    await admin.firestore().collection("refreshTokens").doc(decodedR.jti!).set({
       userId: business.id,
       role: "business",
-      expiresAt: admin.firestore.Timestamp.fromMillis(decodedR.exp * 1000),
+      expiresAt: admin.firestore.Timestamp.fromMillis((decodedR.exp ?? 0) * 1000),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       revoked: false,
     });
@@ -122,7 +122,7 @@ export const loginBusiness = async (req, res) => {
       httpOnly: true,
       secure,
       sameSite: secure ? "none" : "lax",
-      expires: new Date(decodedR.exp * 1000),
+      expires: new Date((decodedR.exp ?? 0) * 1000),
     });
     return res.status(200).json({
       message: "Login exitoso",
@@ -172,10 +172,10 @@ export const loginBusinessWithPassword = async (req, res) => {
     const tokens = generateToken({ id: business.id, role: "business" });
     const refresh = generateRefreshToken({ id: business.id, role: "business" });
     const decodedR = verifyRefreshToken(refresh.refreshToken);
-    await admin.firestore().collection("refreshTokens").doc(decodedR.jti).set({
+    await admin.firestore().collection("refreshTokens").doc(decodedR.jti!).set({
       userId: business.id,
       role: "business",
-      expiresAt: admin.firestore.Timestamp.fromMillis(decodedR.exp * 1000),
+      expiresAt: admin.firestore.Timestamp.fromMillis((decodedR.exp ?? 0) * 1000),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       revoked: false,
     });
@@ -184,7 +184,7 @@ export const loginBusinessWithPassword = async (req, res) => {
       httpOnly: true,
       secure,
       sameSite: secure ? "none" : "lax",
-      expires: new Date(decodedR.exp * 1000),
+      expires: new Date((decodedR.exp ?? 0) * 1000),
     });
     res.status(200).json({
       message: "Login exitoso",
@@ -443,7 +443,7 @@ export const configureBusiness = async (req, res) => {
       }
     }
 
-    const updateData = { isInitialSetupComplete: true };
+    const updateData: any = { isInitialSetupComplete: true };
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (direccion !== undefined) {

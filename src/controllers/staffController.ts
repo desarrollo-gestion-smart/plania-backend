@@ -124,7 +124,7 @@ export const updateStaffMember = async (req, res) => {
     // Solo un negocio puede modificar permisos del staff
     const requesterRole = req.user?.role;
 
-    const payload = {
+    const payload: any = {
       nombre,
       apellido,
       numero,

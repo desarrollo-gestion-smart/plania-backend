@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
+import { TokenPayload, RefreshTokenPayload } from "../types/index.js";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const ACCESS_EXPIRATION = process.env.JWT_ACCESS_EXPIRATION || "8h";
@@ -16,7 +17,7 @@ if (!JWT_SECRET) {
  * @returns {{ planiaToken: string }}
  */
 export function generateToken(userData: any) {
-  const payload = {
+  const payload: TokenPayload = {
     userId: userData.id,
     role: userData.role,
   };
@@ -26,12 +27,12 @@ export function generateToken(userData: any) {
       expiresIn: ACCESS_EXPIRATION,
       algorithm: "HS256",
       jwtid: randomUUID(),
-    }),
+    } as any),
   };
 }
 
 export function generateRefreshToken(userData: any) {
-  const payload = {
+  const payload: RefreshTokenPayload = {
     userId: userData.id,
     role: userData.role,
     type: "refresh",
@@ -41,7 +42,7 @@ export function generateRefreshToken(userData: any) {
       expiresIn: REFRESH_EXPIRATION,
       algorithm: "HS256",
       jwtid: randomUUID(),
-    }),
+    } as any),
   };
 }
 
@@ -51,10 +52,10 @@ export function generateRefreshToken(userData: any) {
  * @returns {object} Payload decodificado
  * @throws {Error} Si el token es inválido o ha expirado
  */
-export function verifyToken(token: string) {
-  return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] });
+export function verifyToken(token: string): TokenPayload {
+  return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as TokenPayload;
 }
 
-export function verifyRefreshToken(token: string) {
-  return jwt.verify(token, REFRESH_SECRET, { algorithms: ["HS256"] });
+export function verifyRefreshToken(token: string): RefreshTokenPayload {
+  return jwt.verify(token, REFRESH_SECRET, { algorithms: ["HS256"] }) as RefreshTokenPayload;
 }

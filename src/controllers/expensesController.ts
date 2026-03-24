@@ -6,7 +6,7 @@ export const createExpenseController = async (req, res) => {
     if (!businessId || !name || categoryId === undefined || categoryId === null || !paidAt || amount === undefined) {
       return res.status(400).json({ error: "Campos requeridos: businessId, name, categoryId, paidAt, amount" });
     }
-    const expense = await createExpense({ businessId, name, categoryId, paidAt, amount });
+    const expense = await createExpense({ businessId, name, category: undefined, categoryId, paidAt, amount });
     return res.status(201).json({ expense });
   } catch (error) {
     const msg = error?.message || "Error creando gasto";

@@ -27,15 +27,15 @@ router.post("/login", loginBusiness);
 // POST /api/logout
 router.post("/logout", authenticateToken, async (req, res) => {
   try {
-    const decoded = req.user || {};
-    if (decoded.jti) {
+    const decoded = req.user;
+    if (decoded && decoded.jti) {
       await admin.firestore()
         .collection("revokedTokens")
         .doc(decoded.jti)
         .set({
           userId: decoded.userId ?? null,
           role: decoded.role ?? null,
-          expiresAt: admin.firestore.Timestamp.fromMillis(decoded.exp * 1000),
+          expiresAt: admin.firestore.Timestamp.fromMillis((decoded.exp ?? 0) * 1000),
           revokedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     }
@@ -43,7 +43,7 @@ router.post("/logout", authenticateToken, async (req, res) => {
     if (rt) {
       try {
         const rDecoded = verifyRefreshToken(rt);
-        await admin.firestore().collection("refreshTokens").doc(rDecoded.jti).update({
+        await admin.firestore().collection("refreshTokens").doc(rDecoded.jti!).update({
           revoked: true,
           revokedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -70,21 +70,21 @@ router.post("/refresh-token", async (req, res) => {
     if (decoded.type !== "refresh") {
       return res.status(403).json({ error: "Token inválido", code: "REFRESH_INVALID" });
     }
-    const doc = await admin.firestore().collection("refreshTokens").doc(decoded.jti).get();
+    const doc = await admin.firestore().collection("refreshTokens").doc(decoded.jti!).get();
     if (!doc.exists || doc.data()?.revoked === true) {
       return res.status(401).json({ error: "Refresh token revocado", code: "REFRESH_REVOKED" });
     }
     const tokens = generateToken({ id: decoded.userId, role: decoded.role });
     const newRefresh = generateRefreshToken({ id: decoded.userId, role: decoded.role });
     const newDecoded = verifyRefreshToken(newRefresh.refreshToken);
-    await admin.firestore().collection("refreshTokens").doc(decoded.jti).update({
+    await admin.firestore().collection("refreshTokens").doc(decoded.jti!).update({
       revoked: true,
       rotatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    await admin.firestore().collection("refreshTokens").doc(newDecoded.jti).set({
+    await admin.firestore().collection("refreshTokens").doc(newDecoded.jti!).set({
       userId: decoded.userId,
       role: decoded.role,
-      expiresAt: admin.firestore.Timestamp.fromMillis(newDecoded.exp * 1000),
+      expiresAt: admin.firestore.Timestamp.fromMillis((newDecoded.exp ?? 0) * 1000),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       revoked: false,
     });
@@ -93,7 +93,7 @@ router.post("/refresh-token", async (req, res) => {
       httpOnly: true,
       secure,
       sameSite: secure ? "none" : "lax",
-      expires: new Date(newDecoded.exp * 1000),
+      expires: new Date((newDecoded.exp ?? 0) * 1000),
     });
     return res.status(200).json({ ...tokens, refreshToken: newRefresh.refreshToken });
   } catch (error) {

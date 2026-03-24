@@ -190,7 +190,7 @@ export const addStaff = async (
   avatar = null,
   apellido = "",
   staffId = null,
-  options = {},
+  options: any = {},
 ) => {
   try {
     console.log("Adding staff:", {
@@ -760,7 +760,7 @@ export const updateStaffFields = async (
       throw new Error("No document to update");
     }
 
-    const updateData = {};
+    const updateData: any = {};
 
     if (nombre !== undefined) updateData.nombre = nombre;
     if (apellido !== undefined)
@@ -1021,7 +1021,7 @@ export const updateAppointmentState = async (appointmentId, newState) => {
       throw new Error("Cita no encontrada");
     }
 
-    const patch = {
+    const patch: any = {
       state: newState,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -1112,7 +1112,7 @@ export const updateAppointmentReschedule = async (appointmentId, date, horario) 
       throw new Error("Horario inválido. Usa una hora entre 00:00 y 23:59");
     }
 
-    const patch = {
+    const patch: any = {
       staffdates: dateStr,
       staffAppointmentsHour: hourStr,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1656,7 +1656,7 @@ export const updateBusinessSchedule = async (
     const data = snap.data();
     if (Number(data.businessId) !== bizIdNum)
       throw new Error("Schedule no pertenece al negocio");
-    const patch = {};
+    const patch: any = {};
     if (payload.days !== undefined) {
       if (!payload.days || typeof payload.days !== "object")
         throw new Error("days requerido");
@@ -1758,7 +1758,7 @@ export const updateStaffSchedule = async (
     const data = snap.data();
     if (Number(data.businessId) !== bizIdNum || String(data.staffId) !== stid)
       throw new Error("Schedule no pertenece al staff o negocio");
-    const patch = {};
+    const patch: any = {};
     if (payload.days !== undefined) {
       if (!payload.days || typeof payload.days !== "object")
         throw new Error("days requerido");
@@ -1953,7 +1953,7 @@ export const getClientById = async (clientId) => {
   }
 };
 
-export const updateClientById = async (clientId, updateData = {}) => {
+export const updateClientById = async (clientId, updateData: any = {}) => {
   try {
     const cid = String(clientId);
     if (!cid) throw new Error("clientId es requerido");
@@ -1963,7 +1963,7 @@ export const updateClientById = async (clientId, updateData = {}) => {
       throw new Error("Cliente no encontrado");
     }
 
-    const patch = {};
+    const patch: any = {};
     if (updateData.nombre !== undefined) patch.nombre = String(updateData.nombre ?? "");
     if (updateData.apellido !== undefined) patch.apellido = String(updateData.apellido ?? "");
     if (updateData.numero !== undefined) patch.numero = String(updateData.numero ?? "");
@@ -2132,7 +2132,7 @@ export const createService = async (
   }
 };
 
-export const updateService = async (businessId, serviceId, updateData) => {
+export const updateService = async (businessId, serviceId, updateData: any) => {
   try {
     const bizIdNum = Number(businessId);
     const sid = String(serviceId);
@@ -2145,7 +2145,7 @@ export const updateService = async (businessId, serviceId, updateData) => {
     if (Number(data.businessId) !== bizIdNum) {
       throw new Error("Service no pertenece al negocio");
     }
-    const patch = {};
+    const patch: any = {};
     if (updateData.name !== undefined) patch.name = String(updateData.name);
     if (updateData.type !== undefined) patch.type = String(updateData.type);
     if (updateData.duration !== undefined) {
@@ -2302,7 +2302,7 @@ export const updateService = async (businessId, serviceId, updateData) => {
       if (Number(sdata.businessId) !== bizIdNum) {
         throw new Error("Staff no pertenece al negocio");
       }
-      const staffPatch = {};
+      const staffPatch: any = {};
       if (updateData.staffDuration !== undefined) {
         const val = updateData.staffDuration;
         if (val === null || String(val).toLowerCase() === "null") {
@@ -2739,7 +2739,7 @@ export const updateBusinessPolicies = async (
       }
       return Math.floor(n);
     };
-    const polPatch = {};
+    const polPatch: any = {};
     const c = parseMinutes(
       cancellationAdvanceMinutes,
       "cancellationAdvanceMinutes",
@@ -3002,7 +3002,7 @@ export const createExpense = async ({
 
 export const getExpensesByBusiness = async (
   businessId,
-  { year, week } = {},
+  { year, week }: any = {},
 ) => {
   try {
     const bizIdNum = Number(businessId);
@@ -3179,7 +3179,7 @@ export const createIncome = async ({
   }
 };
 
-export const getIncomesByBusiness = async (businessId, { year, week } = {}) => {
+export const getIncomesByBusiness = async (businessId, { year, week }: any = {}) => {
   try {
     const bizIdNum = Number(businessId);
     let q = db.collection("incomes").where("businessId", "==", bizIdNum);
@@ -3233,7 +3233,7 @@ export const updateIncome = async (
       throw new Error("Ingreso no encontrado");
     }
     const data = docSnap.data();
-    const updates = {};
+    const updates: any = {};
 
     if (name !== undefined) {
       const nm = String(name).trim();
@@ -3401,7 +3401,7 @@ export const deleteExpense = async (id) => {
 
 export const getBusinessResults = async (
   businessId,
-  { startDate, endDate, year, week } = {},
+  { startDate, endDate, year, week }: any = {},
 ) => {
   try {
     const bizIdNum = Number(businessId);

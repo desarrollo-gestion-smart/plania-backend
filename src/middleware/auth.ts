@@ -1,12 +1,14 @@
 import { verifyToken } from "../utils/jwt.js";
 import admin from "firebase-admin";
+import { Request, Response, NextFunction } from "express";
+import { TokenPayload } from "../types/index.js";
 
 /**
  * Middleware de autenticación JWT.
  * Verifica el token en el header Authorization: Bearer <token>
  * Si es válido, adjunta el payload decodificado a req.user
  */
-export async function authenticateToken(req, res, next) {
+export async function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.startsWith("Bearer ")
     ? authHeader.slice(7)
@@ -27,7 +29,7 @@ export async function authenticateToken(req, res, next) {
     req.user = decoded; // { userId, role, iat, exp, jti? }
     next();
   } catch (error) {
-    if (error.name === "TokenExpiredError") {
+    if ((error as any).name === "TokenExpiredError") {
       return res.status(401).json({ error: "Token expirado", code: "TOKEN_EXPIRED" });
     }
     return res.status(403).json({ error: "Token inválido", code: "TOKEN_INVALID" });
@@ -40,8 +42,8 @@ export async function authenticateToken(req, res, next) {
  * Debe usarse DESPUÉS de authenticateToken.
  * @param  {...string} allowedRoles - Roles permitidos ("user", "business", "staff")
  */
-export function authorizeRoles(...allowedRoles) {
-  return (req, res, next) => {
+export function authorizeRoles(...allowedRoles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: "No autenticado" });
     }
