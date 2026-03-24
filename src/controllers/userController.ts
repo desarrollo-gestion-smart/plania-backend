@@ -375,6 +375,7 @@ export const configureBusiness = async (req, res) => {
         image: req.files?.image ? req.files.image.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })) : [],
         banner: req.files?.banner ? req.files.banner.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })) : [],
         staffAvatars: req.files?.staffAvatars ? req.files.staffAvatars.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })) : [],
+        images: req.files?.images ? req.files.images.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })) : [],
       },
       bodyKeys: Object.keys(req.body || {}),
     });
@@ -397,6 +398,20 @@ export const configureBusiness = async (req, res) => {
       }
     }
 
+    let imagesBase64 = [];
+    try {
+      imagesBase64 = req.body.imagesBase64 ? JSON.parse(req.body.imagesBase64) : [];
+    } catch (e) {
+      imagesBase64 = Array.isArray(req.body.imagesBase64) ? req.body.imagesBase64 : [];
+    }
+
+    let imagesUrls = [];
+    try {
+      imagesUrls = req.body.imagesUrls ? JSON.parse(req.body.imagesUrls) : [];
+    } catch (e) {
+      imagesUrls = Array.isArray(req.body.imagesUrls) ? req.body.imagesUrls : [];
+    }
+
     console.log('ℹ️ [configure-business] parsed summary', {
       id,
       name,
@@ -405,6 +420,9 @@ export const configureBusiness = async (req, res) => {
       hasAvatarUrl: !!req.body?.avatarUrl,
       hasBannerUrl: !!req.body?.bannerUrl,
       staffCount: Array.isArray(staff) ? staff.length : 0,
+      imagesFileCount: req.files?.images?.length ?? 0,
+      imagesBase64Count: imagesBase64.length,
+      imagesUrlsCount: imagesUrls.length,
     });
 
     if (!id) {
@@ -413,6 +431,7 @@ export const configureBusiness = async (req, res) => {
 
     let avatarUrl = null;
     let bannerUrl = null;
+    const imageUrls: string[] = [];
 
     // Avatar: archivo, base64 o URL
     if (req.files?.avatar && req.files.avatar[0]) {
@@ -443,6 +462,30 @@ export const configureBusiness = async (req, res) => {
       }
     }
 
+    // Imágenes adicionales: archivos, base64 o URLs
+    if (req.files?.images && req.files.images.length > 0) {
+      for (const file of req.files.images) {
+        const url = await uploadImageToFirebase(file, id);
+        imageUrls.push(url);
+      }
+    }
+    for (const b64 of imagesBase64) {
+      try {
+        const url = await uploadBase64ToFirebase(b64, id);
+        imageUrls.push(url);
+      } catch (e) {
+        console.error("Error subiendo imagen base64:", e);
+      }
+    }
+    for (const imgUrl of imagesUrls) {
+      try {
+        const url = await uploadFromUrlToFirebase(imgUrl, id);
+        imageUrls.push(url);
+      } catch (e) {
+        console.error("Error subiendo imagen desde URL:", e);
+      }
+    }
+
     const updateData: any = { isInitialSetupComplete: true };
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
@@ -461,6 +504,7 @@ export const configureBusiness = async (req, res) => {
     }
     if (avatarUrl) updateData.avatar = avatarUrl;
     if (bannerUrl) updateData.banner = bannerUrl;
+    if (imageUrls.length > 0) updateData.images = admin.firestore.FieldValue.arrayUnion(...imageUrls);
 
     const userQuery = await db.collection("user-business").where("id", "==", Number(id)).get();
     if (userQuery.empty) {
@@ -494,7 +538,7 @@ export const configureBusiness = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ message: "Business configured successfully", avatarUrl, bannerUrl, staff: staffCreated });
+    return res.status(200).json({ message: "Business configured successfully", avatarUrl, bannerUrl, images: imageUrls, staff: staffCreated });
   } catch (error) {
     console.error("Error configuring business:", error);
     return res.status(500).json({ error: "Error configuring business" });

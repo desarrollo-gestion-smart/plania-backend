@@ -1427,7 +1427,7 @@ const options = {
         post: {
           tags: ["Negocios"],
           summary: "Configurar negocio (setup inicial)",
-          description: "Configura nombre, descripción, avatar, banner y staff del negocio. Acepta multipart/form-data.",
+          description: "Configura nombre, descripción, avatar, banner, imágenes adicionales y staff del negocio. Acepta multipart/form-data.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -1446,6 +1446,9 @@ const options = {
                     bannerBase64: { type: "string" },
                     avatarUrl: { type: "string" },
                     bannerUrl: { type: "string" },
+                    images: { type: "array", items: { type: "string", format: "binary" }, description: "Imágenes adicionales del negocio (archivos)" },
+                    imagesBase64: { type: "string", description: "JSON array de imágenes adicionales en base64. Ej: [\"data:image/jpeg;base64,...\"]" },
+                    imagesUrls: { type: "string", description: "JSON array de URLs de imágenes adicionales. Ej: [\"https://...\"]" },
                     direccion: {
                       type: "object",
                       required: ["address"],
@@ -1466,7 +1469,23 @@ const options = {
             },
           },
           responses: {
-            200: { description: "Negocio configurado exitosamente" },
+            200: {
+              description: "Negocio configurado exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      avatarUrl: { type: "string", nullable: true },
+                      bannerUrl: { type: "string", nullable: true },
+                      images: { type: "array", items: { type: "string" }, description: "URLs de las imágenes adicionales subidas" },
+                      staff: { type: "array", items: { type: "object" } },
+                    },
+                  },
+                },
+              },
+            },
             401: { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
             403: { description: "Sin permisos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
@@ -1475,7 +1494,7 @@ const options = {
         patch: {
           tags: ["Negocios"],
           summary: "Modificar configuración del negocio",
-          description: "Actualiza nombre, descripción, avatar, banner y staff del negocio. Acepta multipart/form-data.",
+          description: "Actualiza nombre, descripción, avatar, banner, imágenes adicionales y staff del negocio. Acepta multipart/form-data.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -1494,6 +1513,9 @@ const options = {
                     bannerBase64: { type: "string" },
                     avatarUrl: { type: "string" },
                     bannerUrl: { type: "string" },
+                    images: { type: "array", items: { type: "string", format: "binary" }, description: "Imágenes adicionales del negocio (archivos)" },
+                    imagesBase64: { type: "string", description: "JSON array de imágenes adicionales en base64. Ej: [\"data:image/jpeg;base64,...\"]" },
+                    imagesUrls: { type: "string", description: "JSON array de URLs de imágenes adicionales. Ej: [\"https://...\"]" },
                     direccion: {
                       type: "object",
                       required: ["address"],
@@ -1514,7 +1536,23 @@ const options = {
             },
           },
           responses: {
-            200: { description: "Negocio modificado exitosamente" },
+            200: {
+              description: "Negocio modificado exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string" },
+                      avatarUrl: { type: "string", nullable: true },
+                      bannerUrl: { type: "string", nullable: true },
+                      images: { type: "array", items: { type: "string" }, description: "URLs de las imágenes adicionales subidas" },
+                      staff: { type: "array", items: { type: "object" } },
+                    },
+                  },
+                },
+              },
+            },
             401: { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorWithCode" } } } },
             403: { description: "Sin permisos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },

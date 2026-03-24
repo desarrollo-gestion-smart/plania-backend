@@ -139,7 +139,8 @@ router.post(
     { name: "avatar", maxCount: 1 },
     { name: "image", maxCount: 1 }, // alias para avatar
     { name: "banner", maxCount: 1 },
-    { name: "staffAvatars" }
+    { name: "staffAvatars" },
+    { name: "images" },
   ]),
   configureBusiness
 );
@@ -152,7 +153,8 @@ router.patch(
     { name: "avatar", maxCount: 1 },
     { name: "image", maxCount: 1 },
     { name: "banner", maxCount: 1 },
-    { name: "staffAvatars" }
+    { name: "staffAvatars" },
+    { name: "images" },
   ]),
   configureBusiness
 );
