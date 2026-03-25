@@ -848,6 +848,7 @@ const options = {
       { name: "Ingresos", description: "Gestión de ingresos (protegido)" },
       { name: "Resultados", description: "Reportes financieros (protegido)" },
       { name: "Uploads", description: "Subida de imágenes" },
+      { name: "Notificaciones", description: "Push tokens y notificaciones push (protegido)" },
     ],
     paths: {
       // ═══════════════════════════════════════════════════════════
@@ -1692,6 +1693,83 @@ const options = {
               },
             },
             401: { description: "No autenticado" },
+          },
+        },
+      },
+      // ═══════════════════════════════════════════════════════════
+      // NOTIFICACIONES (protegido)
+      // ═══════════════════════════════════════════════════════════
+      "/users/{userId}/push-token": {
+        post: {
+          tags: ["Notificaciones"],
+          summary: "Guardar Expo Push Token del usuario",
+          description: "Guarda o actualiza el push token del usuario en Firestore (colección users).",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "userId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["pushToken"],
+                  properties: {
+                    pushToken: { type: "string", example: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxx]" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Token guardado", content: { "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" } } } } } },
+            400: { description: "pushToken requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            500: { description: "Error interno", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/notifications/chat": {
+        post: {
+          tags: ["Notificaciones"],
+          summary: "Enviar notificación push de chat",
+          description: "Busca el push token del destinatario y envía una notificación via Expo Push API.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["recipientId", "recipientType", "senderName", "message", "chatId"],
+                  properties: {
+                    recipientId: { type: "string", description: "ID del destinatario" },
+                    recipientType: { type: "string", enum: ["client", "business"], description: "Tipo de destinatario" },
+                    senderName: { type: "string", description: "Nombre del remitente (título de la notificación)" },
+                    message: { type: "string", description: "Texto del mensaje (cuerpo de la notificación)" },
+                    chatId: { type: "string", description: "ID del chat" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Notificación enviada o sin token",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      ok: { type: "boolean" },
+                      reason: { type: "string", example: "no token", nullable: true },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: "Faltan campos requeridos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            500: { description: "Error interno", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
           },
         },
       },
