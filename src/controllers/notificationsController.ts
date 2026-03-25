@@ -20,6 +20,24 @@ export const savePushToken = async (req, res) => {
   }
 };
 
+export const saveBusinessPushToken = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    const { pushToken } = req.body;
+
+    if (!pushToken) {
+      return res.status(400).json({ error: "pushToken es requerido" });
+    }
+
+    await db.collection("businesses").doc(businessId).set({ pushToken }, { merge: true });
+
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error("Error guardando push token del negocio:", error);
+    return res.status(500).json({ error: "Error guardando push token" });
+  }
+};
+
 export const sendChatNotification = async (req, res) => {
   try {
     const { recipientId, recipientType, senderName, message, chatId } = req.body;

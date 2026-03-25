@@ -1728,6 +1728,35 @@ const options = {
           },
         },
       },
+      "/businesses/{businessId}/push-token": {
+        post: {
+          tags: ["Notificaciones"],
+          summary: "Guardar Expo Push Token del negocio",
+          description: "Guarda o actualiza el push token del negocio en Firestore (colección businesses).",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["pushToken"],
+                  properties: {
+                    pushToken: { type: "string", example: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxx]" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Token guardado", content: { "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" } } } } } },
+            400: { description: "pushToken requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            500: { description: "Error interno", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
       "/notifications/chat": {
         post: {
           tags: ["Notificaciones"],
