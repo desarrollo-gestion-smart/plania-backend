@@ -62,7 +62,7 @@ export const sendChatNotification = async (req, res) => {
         to: pushToken,
         title: senderName,
         body: message,
-        data: { chatId },
+        data: { chatId, recipientType },
         sound: "default",
       }),
     });
