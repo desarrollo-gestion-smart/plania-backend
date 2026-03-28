@@ -446,16 +446,7 @@ export const listAppointmentsByBusiness = async (req, res) => {
       }
     }
 
-    const rawFilter = req.query?.filter;
-    console.log("[DEBUG] req.query:", JSON.stringify(req.query));
-    console.log("[DEBUG] rawFilter:", rawFilter, "type:", typeof rawFilter);
-    const filterStaffId =
-      rawFilter !== null &&
-      typeof rawFilter === "object" &&
-      !Array.isArray(rawFilter)
-        ? (rawFilter as Record<string, string>).staffAppoinments
-        : undefined;
-    console.log("[DEBUG] filterStaffId:", filterStaffId);
+    const filterStaffId = req.query?.["filter[staffAppoinments]"] as string | undefined;
 
     const results = await getAppointmentsByBusiness(bizIdNum, filterStaffId);
 
