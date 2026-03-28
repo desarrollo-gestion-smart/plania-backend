@@ -24,7 +24,8 @@ router.patch("/appointments/:appointmentId/state", authenticateToken, authorizeR
 router.patch("/appointments/:appointmentsId/calificacion", authenticateToken, authorizeRoles("user", "business", "staff"), updateAppointmentCalificacionController);
 
 // Reprogramar cita por fecha y horario
-router.patch("/appointments/:appointmentId/reschedule", authenticateToken, authorizeRoles("business", "staff"), rescheduleAppointmentController);
+router.patch("/appointments/:appointmentId/reschedule", authenticateToken, authorizeRoles("business", "staff", "user"), rescheduleAppointmentController);
+router.post("/appointments/:appointmentId/reschedule", authenticateToken, authorizeRoles("business", "staff", "user"), rescheduleAppointmentController);
 
 // Cronómetro SSE para una cita (business o staff)
 router.get("/appointments/:appointmentId/timer", authenticateToken, authorizeRoles("business", "staff"), appointmentTimerStreamController);
