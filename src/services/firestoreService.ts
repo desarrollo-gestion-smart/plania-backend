@@ -1394,7 +1394,7 @@ export const getAppointmentsByClientId = async (clientId) => {
       const svcInfo = serviceId != null ? svcMap.get(serviceId) ?? null : null;
       return {
         businessId: bizId,
-        businessNombre: bizInfo.nombre,
+        businessName: bizInfo.nombre,
         idappointment: Number(data.idappointment ?? Number(d.id)),
         staffdates: String(data.staffdates ?? data.date ?? ""),
         staffAppoinments: Number(data.staffAppoinments ?? data.staffId ?? 0),
