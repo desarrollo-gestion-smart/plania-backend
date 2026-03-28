@@ -1342,7 +1342,46 @@ export const getAppointmentsByClientId = async (clientId) => {
         snap.docs.forEach((doc) => {
           const b = doc.data() || {};
           const id = Number(b.id ?? doc.id);
-          businessMap.set(id, b?.direccion && typeof b.direccion === "object" ? b.direccion : null);
+          businessMap.set(id, {
+            direccion: b?.direccion && typeof b.direccion === "object" ? b.direccion : null,
+            nombre: b?.nombre ?? "",
+          });
+        });
+      });
+    }
+
+    const serviceIds = Array.from(
+      new Set(
+        querySnap.docs
+          .map((d) => d.data()?.serviceId)
+          .filter((id) => id != null)
+          .map(Number)
+          .filter((id) => Number.isFinite(id)),
+      ),
+    );
+    const svcMap = new Map();
+    if (serviceIds.length > 0) {
+      const chunks = [];
+      for (let i = 0; i < serviceIds.length; i += 10) {
+        chunks.push(serviceIds.slice(i, i + 10));
+      }
+      const snaps = await Promise.all(
+        chunks.map((chunk) =>
+          db.collection("services").where("id", "in", chunk).get(),
+        ),
+      );
+      snaps.forEach((snap) => {
+        snap.docs.forEach((doc) => {
+          const s = doc.data() || {};
+          const id = Number(s.id ?? doc.id);
+          svcMap.set(id, {
+            id,
+            name: s.name ?? "",
+            type: s.type ?? "",
+            duration: s.duration ?? null,
+            price: s.price ?? null,
+            category: s.category ?? "service",
+          });
         });
       });
     }
@@ -1350,8 +1389,12 @@ export const getAppointmentsByClientId = async (clientId) => {
     const results = querySnap.docs.map((d) => {
       const data = d.data();
       const bizId = Number(data.businessId ?? 0);
+      const bizInfo = businessMap.get(bizId) ?? { direccion: null, nombre: "" };
+      const serviceId = data.serviceId != null ? Number(data.serviceId) : null;
+      const svcInfo = serviceId != null ? svcMap.get(serviceId) ?? null : null;
       return {
         businessId: bizId,
+        businessNombre: bizInfo.nombre,
         idappointment: Number(data.idappointment ?? Number(d.id)),
         staffdates: String(data.staffdates ?? data.date ?? ""),
         staffAppoinments: Number(data.staffAppoinments ?? data.staffId ?? 0),
@@ -1360,7 +1403,8 @@ export const getAppointmentsByClientId = async (clientId) => {
         ),
         serviceType: String(data.serviceType ?? ""),
         serviceDuration: data.serviceDuration ?? null,
-        direccion: businessMap.get(bizId) ?? null,
+        service: svcInfo,
+        direccion: bizInfo.direccion,
         state: data.state ?? "pendiente",
         status: data.state ?? "pendiente",
         calificacion:
