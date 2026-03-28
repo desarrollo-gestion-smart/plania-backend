@@ -951,7 +951,7 @@ export const createAppointment = async ({
       businessId: Number(businessId),
       idappointment: newId,
       staffdates: String(date),
-      staffAppoinments: String(staffId),
+      staffAppoinments: Number(staffId),
       staffAppointmentsHour: String(horario),
       serviceId:
         serviceId !== undefined && serviceId !== null
@@ -993,7 +993,7 @@ export const createAppointment = async ({
       .doc(String(staffId))
       .update({
         staffdates: admin.firestore.FieldValue.arrayUnion(String(date)),
-        staffAppoinments: admin.firestore.FieldValue.arrayUnion(String(newId)),
+        staffAppoinments: admin.firestore.FieldValue.arrayUnion(Number(newId)),
         staffAppointmentsHour: admin.firestore.FieldValue.arrayUnion(
           String(horario),
         ),
@@ -1235,7 +1235,7 @@ export const getAppointmentsByBusiness = async (businessId, filterStaffId?: stri
       .collection("appointments")
       .where("businessId", "==", bizIdNum);
     if (filterStaffId !== undefined && filterStaffId !== null && filterStaffId !== "") {
-      appointmentsQuery = appointmentsQuery.where("staffAppoinments", "==", String(filterStaffId));
+      appointmentsQuery = appointmentsQuery.where("staffAppoinments", "==", Number(filterStaffId));
     }
     const [querySnap, staffSnap, svcSnap, businessSnap] = await Promise.all([
       appointmentsQuery.get(),
