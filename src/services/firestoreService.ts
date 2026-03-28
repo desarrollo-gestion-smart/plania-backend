@@ -1235,7 +1235,7 @@ export const getAppointmentsByBusiness = async (businessId, filterStaffId?: stri
       .collection("appointments")
       .where("businessId", "==", bizIdNum);
     if (filterStaffId !== undefined && filterStaffId !== null && filterStaffId !== "") {
-      appointmentsQuery = appointmentsQuery.where("staffAppoinments", "==", Number(filterStaffId));
+      appointmentsQuery = appointmentsQuery.where("staffAppoinments", "==", String(filterStaffId));
     }
     const [querySnap, staffSnap, svcSnap, businessSnap] = await Promise.all([
       appointmentsQuery.get(),
