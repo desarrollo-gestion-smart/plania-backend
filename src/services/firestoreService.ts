@@ -1344,7 +1344,8 @@ export const getAppointmentsByClientId = async (clientId) => {
           const id = Number(b.id ?? doc.id);
           businessMap.set(id, {
             direccion: b?.direccion && typeof b.direccion === "object" ? b.direccion : null,
-            nombre: b?.nombre ?? "",
+            name: b?.name ?? "",
+            avatar: b?.avatar ?? null,
           });
         });
       });
@@ -1389,12 +1390,13 @@ export const getAppointmentsByClientId = async (clientId) => {
     const results = querySnap.docs.map((d) => {
       const data = d.data();
       const bizId = Number(data.businessId ?? 0);
-      const bizInfo = businessMap.get(bizId) ?? { direccion: null, nombre: "" };
+      const bizInfo = businessMap.get(bizId) ?? { direccion: null, name: "", avatar: null };
       const serviceId = data.serviceId != null ? Number(data.serviceId) : null;
       const svcInfo = serviceId != null ? svcMap.get(serviceId) ?? null : null;
       return {
         businessId: bizId,
-        businessName: bizInfo.nombre,
+        businessName: bizInfo.name,
+        businessAvatar: bizInfo.avatar,
         idappointment: Number(data.idappointment ?? Number(d.id)),
         staffdates: String(data.staffdates ?? data.date ?? ""),
         staffAppoinments: Number(data.staffAppoinments ?? data.staffId ?? 0),
