@@ -1228,11 +1228,17 @@ export const deleteAppointment = async (appointmentId) => {
   }
 };
 
-export const getAppointmentsByBusiness = async (businessId) => {
+export const getAppointmentsByBusiness = async (businessId, filterStaffId?: string | number) => {
   try {
     const bizIdNum = Number(businessId);
+    let appointmentsQuery: FirebaseFirestore.Query = db
+      .collection("appointments")
+      .where("businessId", "==", bizIdNum);
+    if (filterStaffId !== undefined && filterStaffId !== null && filterStaffId !== "") {
+      appointmentsQuery = appointmentsQuery.where("staffAppoinments", "==", Number(filterStaffId));
+    }
     const [querySnap, staffSnap, svcSnap, businessSnap] = await Promise.all([
-      db.collection("appointments").where("businessId", "==", bizIdNum).get(),
+      appointmentsQuery.get(),
       db.collection("staff").where("businessId", "==", bizIdNum).get(),
       db.collection("services").where("businessId", "==", bizIdNum).get(),
       db.collection("user-business").where("id", "==", bizIdNum).limit(1).get(),

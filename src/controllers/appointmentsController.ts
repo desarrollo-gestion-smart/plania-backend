@@ -446,7 +446,9 @@ export const listAppointmentsByBusiness = async (req, res) => {
       }
     }
 
-    const results = await getAppointmentsByBusiness(bizIdNum);
+    const filterStaffId = req.query?.filter?.staffAppoinments ?? undefined;
+
+    const results = await getAppointmentsByBusiness(bizIdNum, filterStaffId);
 
     // Controlar visibilidad del número de teléfono del cliente para staff
     let finalResults = results;
