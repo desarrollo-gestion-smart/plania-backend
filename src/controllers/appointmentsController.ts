@@ -752,6 +752,12 @@ export const deleteAppointmentController = async (req, res) => {
           .status(403)
           .json({ error: "No puedes eliminar citas de otro negocio" });
       }
+    } else if (requesterRole === "user") {
+      if (Number(apptData.userId) !== Number(requester.userId)) {
+        return res
+          .status(403)
+          .json({ error: "No puedes eliminar citas de otro cliente" });
+      }
     }
 
     const result = await deleteAppointment(appointmentId);

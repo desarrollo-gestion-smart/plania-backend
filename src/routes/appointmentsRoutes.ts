@@ -31,6 +31,6 @@ router.post("/appointments/:appointmentId/reschedule", authenticateToken, author
 router.get("/appointments/:appointmentId/timer", authenticateToken, authorizeRoles("business", "staff"), appointmentTimerStreamController);
 
 // Eliminar una cita (business o staff)
-router.delete("/appointments/:appointmentId", authenticateToken, authorizeRoles("business", "staff"), deleteAppointmentController);
+router.delete("/appointments/:appointmentId", authenticateToken, authorizeRoles("business", "staff", "user"), deleteAppointmentController);
 
 export default router;
