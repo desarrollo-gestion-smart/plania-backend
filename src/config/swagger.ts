@@ -2094,7 +2094,16 @@ const options = {
           tags: ["Citas"],
           summary: "Listar citas de un negocio",
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "businessId", in: "path", required: true, schema: { type: "string" } }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "string" } },
+            {
+              name: "filter[staffAppoinments]",
+              in: "query",
+              required: false,
+              schema: { type: "number" },
+              description: "Filtrar citas por ID del staff (staffAppoinments)",
+            },
+          ],
           responses: {
             200: {
               description: "Lista de citas",
