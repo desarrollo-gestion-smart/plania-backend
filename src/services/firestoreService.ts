@@ -1231,14 +1231,8 @@ export const deleteAppointment = async (appointmentId) => {
 export const getAppointmentsByBusiness = async (businessId, filterStaffId?: string | number) => {
   try {
     const bizIdNum = Number(businessId);
-    let appointmentsQuery: FirebaseFirestore.Query = db
-      .collection("appointments")
-      .where("businessId", "==", bizIdNum);
-    if (filterStaffId !== undefined && filterStaffId !== null && filterStaffId !== "") {
-      appointmentsQuery = appointmentsQuery.where("staffAppoinments", "==", Number(filterStaffId));
-    }
     const [querySnap, staffSnap, svcSnap, businessSnap] = await Promise.all([
-      appointmentsQuery.get(),
+      db.collection("appointments").where("businessId", "==", bizIdNum).get(),
       db.collection("staff").where("businessId", "==", bizIdNum).get(),
       db.collection("services").where("businessId", "==", bizIdNum).get(),
       db.collection("user-business").where("id", "==", bizIdNum).limit(1).get(),
@@ -1305,6 +1299,12 @@ export const getAppointmentsByBusiness = async (businessId, filterStaffId?: stri
         userAvatar: data.userAvatar ?? null,
       };
     });
+
+    if (filterStaffId !== undefined && filterStaffId !== null && filterStaffId !== "") {
+      const staffIdNum = Number(filterStaffId);
+      return results.filter((a) => Number(a.staffAppoinments) === staffIdNum);
+    }
+
     return results;
   } catch (error) {
     console.error("Firestore error obteniendo citas por negocio:", error);
