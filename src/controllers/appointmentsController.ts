@@ -318,13 +318,13 @@ export const updateAppointmentCalificacionController = async (req, res) => {
 
 export const rescheduleAppointmentController = async (req, res) => {
   try {
-    const { appintmentId } = req.params;
+    const { appointmentId } = req.params;
     const { date, horario } = req.body || {};
 
-    if (!appintmentId) {
+    if (!appointmentId) {
       return res
         .status(400)
-        .json({ error: "Parámetro appintmentId es requerido" });
+        .json({ error: "Parámetro appointmentId es requerido" });
     }
     if (!date || !horario) {
       return res
@@ -346,7 +346,7 @@ export const rescheduleAppointmentController = async (req, res) => {
       const apptRef = admin
         .firestore()
         .collection("appointments")
-        .doc(String(appintmentId));
+        .doc(String(appointmentId));
       const apptSnap = await apptRef.get();
       if (!apptSnap.exists) {
         return res.status(404).json({ error: "Cita no encontrada" });
@@ -381,7 +381,7 @@ export const rescheduleAppointmentController = async (req, res) => {
       }
     }
 
-    const result = await updateAppointmentReschedule(appintmentId, date, horario);
+    const result = await updateAppointmentReschedule(appointmentId, date, horario);
     return res.status(200).json({
       message: "Cita reprogramada exitosamente",
       ...result,
