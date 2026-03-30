@@ -1,5 +1,5 @@
 import express from "express";
-import { createAppointmentController, listAppointmentsByBusiness, listClientsByBusinessController, listAppointmentsByClientIdController, updateAppointmentStateController, updateAppointmentCalificacionController, rescheduleAppointmentController, appointmentTimerStreamController, deleteAppointmentController } from "../controllers/appointmentsController.js";
+import { createAppointmentController, createManualAppointmentController, listAppointmentsByBusiness, listClientsByBusinessController, listAppointmentsByClientIdController, updateAppointmentStateController, updateAppointmentCalificacionController, rescheduleAppointmentController, appointmentTimerStreamController, deleteAppointmentController } from "../controllers/appointmentsController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -7,6 +7,9 @@ const router = express.Router();
 // ─── Rutas protegidas ──────────────────────────────────────────────────
 // Crear una cita (cualquier usuario autenticado)
 router.post("/appointments", authenticateToken, createAppointmentController);
+
+// Crear una cita manual sin userId (solo business o staff)
+router.post("/appointments/manual", authenticateToken, authorizeRoles("business", "staff"), createManualAppointmentController);
 
 // Listar citas por businessId (solo business o staff)
 router.get("/appointments/:businessId", authenticateToken, authorizeRoles("business", "staff", "user"), listAppointmentsByBusiness);

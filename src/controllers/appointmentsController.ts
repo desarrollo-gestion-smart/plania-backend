@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 import {
   createAppointment,
+  createManualAppointment,
   getAppointmentsByBusiness,
   getAppointmentsByClientId,
   getListClientsByBusiness,
@@ -771,5 +772,60 @@ export const deleteAppointmentController = async (req, res) => {
       return res.status(404).json({ error: msg });
     }
     return res.status(500).json({ error: msg });
+  }
+};
+
+export const createManualAppointmentController = async (req, res) => {
+  try {
+    const { businessId, staffId, date, horario } = req.body || {};
+    const serviceId = req.body?.serviceId ?? req.body?.service;
+
+    if (!businessId || !staffId || !date || !horario) {
+      return res.status(400).json({
+        error: "Faltan campos requeridos: businessId, staffId, date, horario",
+      });
+    }
+
+    const requester = req.user || {};
+    const requesterRole = requester.role;
+    const requesterId = requester.id;
+
+    if (requesterRole === "staff") {
+      if (!requesterId) {
+        return res.status(403).json({ error: "No tienes permisos para gestionar citas" });
+      }
+      if (String(staffId) !== String(requesterId)) {
+        return res.status(403).json({ error: "No puedes crear citas para otro miembro del staff" });
+      }
+      const staffSnap = await admin.firestore().collection("staff").doc(String(requesterId)).get();
+      if (!staffSnap.exists) {
+        return res.status(403).json({ error: "Staff no encontrado para el usuario autenticado" });
+      }
+      const staffData = staffSnap.data() || {};
+      if (!Boolean((staffData.permissions || {}).manualAppointments)) {
+        return res.status(403).json({ error: "No tienes permisos para crear, editar o eliminar citas" });
+      }
+      if (Number(staffData.businessId) !== Number(businessId)) {
+        return res.status(403).json({ error: "No puedes gestionar citas de otro negocio" });
+      }
+    } else if (requesterRole === "business") {
+      if (Number(requester.userId) !== Number(businessId)) {
+        return res.status(403).json({ error: "No puedes gestionar citas de otro negocio" });
+      }
+    }
+
+    const appointment = await createManualAppointment({
+      businessId: Number(businessId),
+      staffId: String(staffId),
+      serviceId: serviceId !== undefined ? Number(serviceId) : undefined,
+      date: String(date),
+      horario,
+    });
+
+    return res.status(201).json({ appointment });
+  } catch (error) {
+    const msg = error?.message || "Error creando cita manual";
+    const code = /not found|no pertenece|fecha inválida|Service/i.test(msg) ? 400 : 500;
+    return res.status(code).json({ error: msg });
   }
 };

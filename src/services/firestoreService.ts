@@ -1007,6 +1007,124 @@ export const createAppointment = async ({
   }
 };
 
+export const createManualAppointment = async ({
+  businessId,
+  staffId,
+  serviceId,
+  date,
+  horario,
+}) => {
+  try {
+    if (!businessId || !staffId || !date || !horario) {
+      throw new Error("Campos requeridos: businessId, staffId, date, horario");
+    }
+
+    let finalDuration = undefined;
+    let finalType = undefined;
+
+    const businessQuery = await db
+      .collection("user-business")
+      .where("id", "==", Number(businessId))
+      .get();
+    if (businessQuery.empty) {
+      throw new Error("Business not found");
+    }
+    const businessRef = businessQuery.docs[0].ref;
+
+    const staffDoc = await db.collection("staff").doc(String(staffId)).get();
+    if (!staffDoc.exists) {
+      throw new Error("Staff not found");
+    }
+    const staffData = staffDoc.data();
+    if (Number(staffData.businessId) !== Number(businessId)) {
+      throw new Error("Staff no pertenece al negocio");
+    }
+
+    const match = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/.exec(String(date));
+    if (!match) {
+      throw new Error("Fecha inválida. Formato requerido dd/MM/YYYY");
+    }
+    const d = Number(match[1]);
+    const m = Number(match[2]);
+    const y = Number(match[3]);
+    const jsDate = new Date(y, m - 1, d);
+    if (
+      jsDate.getFullYear() !== y ||
+      jsDate.getMonth() !== m - 1 ||
+      jsDate.getDate() !== d
+    ) {
+      throw new Error("Fecha inválida en el calendario");
+    }
+
+    if (serviceId !== undefined && serviceId !== null) {
+      const svcDoc = await db.collection("services").doc(String(serviceId)).get();
+      if (!svcDoc.exists) {
+        throw new Error("Service not found");
+      }
+      const svcData = svcDoc.data();
+      if (Number(svcData.businessId) !== Number(businessId)) {
+        throw new Error("Service no pertenece al negocio");
+      }
+      finalType = String(svcData.type ?? "");
+      if (typeof svcData.duration === "number" && svcData.duration > 0) {
+        finalDuration = svcData.duration;
+      }
+    }
+
+    const newId = await getNextId("appointmentId");
+    const appointmentRef = db.collection("appointments").doc(String(newId));
+
+    const appointment = {
+      businessId: Number(businessId),
+      idappointment: newId,
+      staffdates: String(date),
+      staffAppoinments: Number(staffId),
+      staffAppointmentsHour: String(horario),
+      serviceId: serviceId !== undefined && serviceId !== null ? Number(serviceId) : null,
+      serviceType: finalType ? String(finalType) : "",
+      serviceDuration: typeof finalDuration === "number" ? finalDuration : null,
+      state: "pendiente",
+      userId: null,
+      userNombre: "",
+      userNumero: "",
+      userAvatar: null,
+    };
+
+    await appointmentRef.set(appointment);
+
+    const summary = {
+      id: newId,
+      staffId: String(staffId),
+      serviceId: appointment.serviceId,
+      serviceType: appointment.serviceType,
+      serviceDuration: appointment.serviceDuration,
+      date: String(date),
+      horario: String(horario),
+      state: "pendiente",
+      userId: null,
+    };
+    await businessRef.update({
+      appointments: admin.firestore.FieldValue.arrayUnion(summary),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await db
+      .collection("staff")
+      .doc(String(staffId))
+      .update({
+        staffdates: admin.firestore.FieldValue.arrayUnion(String(date)),
+        staffAppoinments: admin.firestore.FieldValue.arrayUnion(Number(newId)),
+        staffAppointmentsHour: admin.firestore.FieldValue.arrayUnion(String(horario)),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    return appointment;
+  } catch (error) {
+    console.error("Firestore error creando cita manual:", error);
+    throw new Error(error.message);
+  }
+};
+
 export const updateAppointmentState = async (appointmentId, newState) => {
   try {
     if (!APPOINTMENT_STATES.includes(newState)) {
