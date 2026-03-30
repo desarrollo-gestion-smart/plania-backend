@@ -2089,6 +2089,38 @@ const options = {
           },
         },
       },
+      "/appointments/manual": {
+        post: {
+          tags: ["Citas"],
+          summary: "Crear una cita manual (sin cliente)",
+          description: "Crea una cita sin userId. Útil cuando el negocio agenda manualmente. Requiere businessId, staffId, date y horario. serviceId es opcional.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["businessId", "staffId", "date", "horario"],
+                  properties: {
+                    businessId: { type: "number", example: 60 },
+                    staffId: { type: "string", example: "104" },
+                    date: { type: "string", example: "30/03/2026" },
+                    horario: { type: "string", example: "10:00" },
+                    serviceId: { type: "number", example: 14, description: "Opcional" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: { description: "Cita manual creada exitosamente" },
+            400: { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+            403: { description: "Sin permisos" },
+          },
+        },
+      },
       "/appointments/{businessId}": {
         get: {
           tags: ["Citas"],
