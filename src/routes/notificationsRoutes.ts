@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticateToken } from "../middleware/auth.js";
-import { savePushToken, saveBusinessPushToken, sendChatNotification } from "../controllers/notificationsController.js";
+import { savePushToken, saveBusinessPushToken, sendChatNotification, sendAppointmentNotification } from "../controllers/notificationsController.js";
 
 const router = express.Router();
 
@@ -12,5 +12,8 @@ router.post("/businesses/:businessId/push-token", authenticateToken, saveBusines
 
 // POST /api/notifications/chat
 router.post("/notifications/chat", authenticateToken, sendChatNotification);
+
+// POST /api/notifications/appointment
+router.post("/notifications/appointment", authenticateToken, sendAppointmentNotification);
 
 export default router;

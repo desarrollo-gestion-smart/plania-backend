@@ -38,6 +38,48 @@ export const saveBusinessPushToken = async (req, res) => {
   }
 };
 
+export const sendAppointmentNotification = async (req, res) => {
+  try {
+    const { recipientId, recipientType, message, businessName } = req.body;
+
+    if (!recipientId || !recipientType || !message || !businessName) {
+      return res.status(400).json({ error: "Faltan campos requeridos: recipientId, recipientType, message, businessName" });
+    }
+
+    const collection = recipientType === "business" ? "businesses" : "users";
+    const doc = await db.collection(collection).doc(String(recipientId)).get();
+
+    const pushToken = doc.exists ? doc.data()?.pushToken : null;
+
+    if (!pushToken) {
+      return res.status(200).json({ success: false, reason: "no token" });
+    }
+
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: pushToken,
+        title: businessName,
+        body: message,
+        data: { recipientId, recipientType },
+        sound: "default",
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Error de Expo Push API:", response.status, text);
+      return res.status(500).json({ error: "Error enviando notificación" });
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Error enviando notificación de cita:", error);
+    return res.status(500).json({ error: "Error enviando notificación de cita" });
+  }
+};
+
 export const sendChatNotification = async (req, res) => {
   try {
     const { recipientId, recipientType, senderName, message, chatId } = req.body;
