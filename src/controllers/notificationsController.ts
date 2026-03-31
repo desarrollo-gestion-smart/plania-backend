@@ -40,14 +40,13 @@ export const saveBusinessPushToken = async (req, res) => {
 
 export const sendAppointmentNotification = async (req, res) => {
   try {
-    const { recipientId, recipientType, message, businessName } = req.body;
+    const { recipientId, message, businessName } = req.body;
 
-    if (!recipientId || !recipientType || !message || !businessName) {
-      return res.status(400).json({ error: "Faltan campos requeridos: recipientId, recipientType, message, businessName" });
+    if (!recipientId || !message || !businessName) {
+      return res.status(400).json({ error: "Faltan campos requeridos: recipientId, message, businessName" });
     }
 
-    const collection = recipientType === "business" ? "businesses" : "users";
-    const doc = await db.collection(collection).doc(String(recipientId)).get();
+    const doc = await db.collection("users").doc(String(recipientId)).get();
 
     const pushToken = doc.exists ? doc.data()?.pushToken : null;
 
@@ -62,7 +61,7 @@ export const sendAppointmentNotification = async (req, res) => {
         to: pushToken,
         title: businessName,
         body: message,
-        data: { recipientId, recipientType },
+        data: { recipientId },
         sound: "default",
       }),
     });
