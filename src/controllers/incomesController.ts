@@ -12,8 +12,8 @@ import {
 export const createIncomeController = async (req, res) => {
   try {
     const { businessId, name, categoryId, receivedAt, amount } = req.body || {};
-    if (!businessId || !name || !categoryId || !receivedAt || amount === undefined) {
-      return res.status(400).json({ error: "Campos requeridos: businessId, name, categoryId (1=Productos, 2=Servicios), receivedAt, amount" });
+    if (!businessId || !name || !receivedAt || amount === undefined) {
+      return res.status(400).json({ error: "Campos requeridos: businessId, name, receivedAt, amount" });
     }
     const income = await createIncome({ businessId, name, categoryId, receivedAt, amount });
     return res.status(201).json({ income });
