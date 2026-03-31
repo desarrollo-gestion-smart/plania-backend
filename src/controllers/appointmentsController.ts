@@ -777,7 +777,7 @@ export const deleteAppointmentController = async (req, res) => {
 
 export const createManualAppointmentController = async (req, res) => {
   try {
-    const { businessId, staffId, date, horario } = req.body || {};
+    const { businessId, staffId, date, horario, name } = req.body || {};
     const serviceId = req.body?.serviceId ?? req.body?.service;
 
     if (!businessId || !staffId || !date || !horario) {
@@ -820,6 +820,7 @@ export const createManualAppointmentController = async (req, res) => {
       serviceId: serviceId !== undefined ? Number(serviceId) : undefined,
       date: String(date),
       horario,
+      name: name ? String(name) : undefined,
     });
 
     return res.status(201).json({ appointment });

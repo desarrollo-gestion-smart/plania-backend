@@ -1013,6 +1013,7 @@ export const createManualAppointment = async ({
   serviceId,
   date,
   horario,
+  name,
 }) => {
   try {
     if (!businessId || !staffId || !date || !horario) {
@@ -1085,7 +1086,7 @@ export const createManualAppointment = async ({
       serviceDuration: typeof finalDuration === "number" ? finalDuration : null,
       state: "pendiente",
       userId: null,
-      userNombre: "",
+      userNombre: name ? String(name) : "",
       userNumero: "",
       userAvatar: null,
     };

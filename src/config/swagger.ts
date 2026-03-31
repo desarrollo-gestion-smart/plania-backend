@@ -2108,6 +2108,7 @@ const options = {
                     date: { type: "string", example: "30/03/2026" },
                     horario: { type: "string", example: "10:00" },
                     serviceId: { type: "number", example: 14, description: "Opcional" },
+                    name: { type: "string", example: "Juan Pérez", description: "Nombre del cliente (opcional)" },
                   },
                 },
               },
