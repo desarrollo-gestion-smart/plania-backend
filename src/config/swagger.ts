@@ -1401,11 +1401,16 @@ const options = {
                 schema: {
                   type: "object",
                   properties: {
-                    nombre: { type: "string" },
-                    apellido: { type: "string" },
-                    numero: { type: "string" },
-                    avatarBase64: { type: "string" },
-                    avatarUrl: { type: "string" },
+                    user: {
+                      type: "object",
+                      properties: {
+                        nombre: { type: "string" },
+                        apellido: { type: "string" },
+                        numero: { type: "string" },
+                        avatarBase64: { type: "string" },
+                        avatarUrl: { type: "string" },
+                      },
+                    },
                   },
                 },
               },
