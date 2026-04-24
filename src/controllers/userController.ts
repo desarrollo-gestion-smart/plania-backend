@@ -674,9 +674,15 @@ export const updateClient = async (req, res) => {
 
     let avatar = undefined;
     if (req.files?.avatar && req.files.avatar[0]) {
-      avatar = await uploadImageToFirebase(req.files.avatar[0], clientId);
+      const file = req.files.avatar[0];
+      console.log("[updateClient] Uploading avatar file:", { name: file.originalname, size: file.size, mimetype: file.mimetype });
+      avatar = await uploadImageToFirebase(file, clientId);
+      console.log("[updateClient] Avatar uploaded:", avatar);
     } else if (req.files?.image && req.files.image[0]) {
-      avatar = await uploadImageToFirebase(req.files.image[0], clientId);
+      const file = req.files.image[0];
+      console.log("[updateClient] Uploading image file:", { name: file.originalname, size: file.size, mimetype: file.mimetype });
+      avatar = await uploadImageToFirebase(file, clientId);
+      console.log("[updateClient] Image uploaded:", avatar);
     } else if (req.body?.avatarBase64) {
       avatar = await uploadBase64ToFirebase(req.body.avatarBase64, clientId);
     } else if (req.body?.avatarUrl) {

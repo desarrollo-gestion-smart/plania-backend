@@ -35,15 +35,21 @@ export const uploadImageToFirebase = async (file, userId = null) => {
   const fileName = `${prefix}${Date.now()}_${file.originalname}`;
   const fileUpload = bucket.file(fileName);
 
+  console.log("[uploadImageToFirebase] Uploading file:", { fileName, bufferSize: file.buffer?.length, mimetype: file.mimetype });
+
   await fileUpload.save(file.buffer, {
     metadata: { contentType: file.mimetype },
   });
+
+  console.log("[uploadImageToFirebase] File saved to Storage");
 
   // Hacer el archivo público
   await fileUpload.makePublic();
 
   // Devolver la URL pública
-  return `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+  const url = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+  console.log("[uploadImageToFirebase] File is now public:", url);
+  return url;
 };
 
 // Añadir soporte para subir imágenes desde base64
