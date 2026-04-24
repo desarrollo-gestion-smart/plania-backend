@@ -2125,6 +2125,124 @@ export const getClientById = async (clientId) => {
   }
 };
 
+const mapFollowerDoc = (doc) => {
+  const data = doc.data() || {};
+  return {
+    id: data.id ?? Number(doc.id),
+    userId: data.userId ?? null,
+    businessId: data.businessId ?? null,
+    user: data.user ?? null,
+    business: data.business ?? null,
+    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
+  };
+};
+
+export const followBusiness = async (userId, businessId) => {
+  try {
+    const uid = String(userId || "").trim();
+    const bid = String(businessId || "").trim();
+    if (!uid || !bid) throw new Error("userId y businessId son requeridos");
+
+    const businessRef = db.collection("user-business").doc(bid);
+    const businessDoc = await businessRef.get();
+    if (!businessDoc.exists) {
+      throw new Error("Negocio no encontrado");
+    }
+
+    const existingFollow = await db
+      .collection("followers")
+      .where("userId", "==", uid)
+      .where("businessId", "==", bid)
+      .limit(1)
+      .get();
+
+    if (!existingFollow.empty) {
+      return { message: "Ya estás siguiendo este negocio", follower: mapFollowerDoc(existingFollow.docs[0]) };
+    }
+
+    const businessData = businessDoc.data() || {};
+    const newId = await getNextId("followerId");
+    const followerRef = db.collection("followers").doc(String(newId));
+    await followerRef.set({
+      id: newId,
+      userId: uid,
+      businessId: bid,
+      business: {
+        id: businessData.id ?? bid,
+        nombre: businessData.nombre ?? "",
+        avatar: businessData.avatar ?? null,
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const followerDoc = await followerRef.get();
+    return { follower: mapFollowerDoc(followerDoc) };
+  } catch (error) {
+    console.error("Firestore error siguiendo negocio:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getFollowersByBusinessId = async (businessId) => {
+  try {
+    const bid = String(businessId || "").trim();
+    if (!bid) throw new Error("businessId es requerido");
+
+    const snapshot = await db
+      .collection("followers")
+      .where("businessId", "==", bid)
+      .orderBy("createdAt", "desc")
+      .get();
+    return snapshot.docs.map(mapFollowerDoc);
+  } catch (error) {
+    console.error("Firestore error obteniendo followers:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getUserFollowings = async (userId) => {
+  try {
+    const uid = String(userId || "").trim();
+    if (!uid) throw new Error("userId es requerido");
+
+    const snapshot = await db
+      .collection("followers")
+      .where("userId", "==", uid)
+      .orderBy("createdAt", "desc")
+      .get();
+    return snapshot.docs.map(mapFollowerDoc);
+  } catch (error) {
+    console.error("Firestore error obteniendo followings:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const unfollowBusiness = async (userId, businessId) => {
+  try {
+    const uid = String(userId || "").trim();
+    const bid = String(businessId || "").trim();
+    if (!uid || !bid) throw new Error("userId y businessId son requeridos");
+
+    const snapshot = await db
+      .collection("followers")
+      .where("userId", "==", uid)
+      .where("businessId", "==", bid)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      throw new Error("No estás siguiendo este negocio");
+    }
+
+    const docId = snapshot.docs[0].id;
+    await db.collection("followers").doc(docId).delete();
+    return { message: "Dejaste de seguir el negocio" };
+  } catch (error) {
+    console.error("Firestore error dejando de seguir:", error);
+    throw new Error(error.message);
+  }
+};
+
 export const updateClientById = async (clientId, updateData: any = {}) => {
   try {
     const cid = String(clientId);

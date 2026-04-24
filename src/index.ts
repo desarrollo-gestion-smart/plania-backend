@@ -26,6 +26,8 @@ import expensesRoutes from "./routes/expensesRoutes.js";
 import incomesRoutes from "./routes/incomesRoutes.js";
 // @ts-ignore
 import notificationsRoutes from "./routes/notificationsRoutes.js";
+// @ts-ignore
+import followersRoutes from "./routes/followersRoutes.js";
 
 dotenv.config();
 
@@ -101,6 +103,7 @@ app.use("/api", schedulesRoutes);
 app.use("/api", expensesRoutes);
 app.use("/api", incomesRoutes);
 app.use("/api", notificationsRoutes);
+app.use("/api", followersRoutes);
 
 const envPort = process.env.PORT;
 const PORT = envPort && !isNaN(Number(envPort)) ? Number(envPort) : 3000;
