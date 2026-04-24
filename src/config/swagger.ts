@@ -833,9 +833,8 @@ const options = {
             state: { type: "string", enum: ["pendiente", "confirmado", "cancelado", "completado"] },
           },
         },
-      },
 
-      // ─── Followers ─────────────────────────────────────────
+        // ─── Followers ─────────────────────────────────────────
       Follower: {
         type: "object",
         properties: {
@@ -879,6 +878,7 @@ const options = {
           total: { type: "number", example: 3 },
         },
       },
+    },
     },
     tags: [
       { name: "Health", description: "Estado del servidor" },
