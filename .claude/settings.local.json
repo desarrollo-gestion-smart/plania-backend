@@ -6,7 +6,15 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(git rm:*)",
-      "Bash(git commit -m 'feat: implement complete followers endpoint system *)"
+      "Bash(git commit -m 'feat: implement complete followers endpoint system *)",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"cd ~/plania-backend && git pull origin develop && npm run build\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"which node && which npm && node --version && npm --version\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"ls -la ~/ | head -20\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"bash -l -c 'cd ~/plania-backend && npm run build'\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"bash -l -c 'cd ~/plania-backend && pm2 restart plania-backend'\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"bash -l -c 'pm2 restart plania'\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/health | jq .\")",
+      "Bash(git commit -m 'docs: add followers endpoints to Swagger documentation *)"
     ]
   }
 }

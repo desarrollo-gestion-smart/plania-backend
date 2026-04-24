@@ -834,6 +834,51 @@ const options = {
           },
         },
       },
+
+      // ─── Followers ─────────────────────────────────────────
+      Follower: {
+        type: "object",
+        properties: {
+          id: { type: "number", example: 1 },
+          userId: { type: "string", example: "user123" },
+          businessId: { type: "string", example: "business456" },
+          business: {
+            type: "object",
+            properties: {
+              id: { type: "string", example: "business456" },
+              nombre: { type: "string", example: "Mi Barbería" },
+              avatar: { type: "string", nullable: true, example: "https://example.com/avatar.jpg" },
+            },
+          },
+          createdAt: { type: "string", format: "date-time", example: "2024-04-24T10:30:00.000Z" },
+        },
+      },
+      FollowBizResponse: {
+        type: "object",
+        properties: {
+          follower: { $ref: "#/components/schemas/Follower" },
+        },
+      },
+      FollowersListResponse: {
+        type: "object",
+        properties: {
+          followers: {
+            type: "array",
+            items: { $ref: "#/components/schemas/Follower" },
+          },
+          total: { type: "number", example: 5 },
+        },
+      },
+      FollowingsListResponse: {
+        type: "object",
+        properties: {
+          followings: {
+            type: "array",
+            items: { $ref: "#/components/schemas/Follower" },
+          },
+          total: { type: "number", example: 3 },
+        },
+      },
     },
     tags: [
       { name: "Health", description: "Estado del servidor" },
@@ -849,6 +894,7 @@ const options = {
       { name: "Resultados", description: "Reportes financieros (protegido)" },
       { name: "Uploads", description: "Subida de imágenes" },
       { name: "Notificaciones", description: "Push tokens y notificaciones push (protegido)" },
+      { name: "Followers", description: "Gestión de seguidores de negocios (protegido)" },
     ],
     paths: {
       // ═══════════════════════════════════════════════════════════
@@ -2599,6 +2645,70 @@ const options = {
           responses: {
             200: { description: "Resultados financieros", content: { "application/json": { schema: { $ref: "#/components/schemas/BusinessResults" } } } },
             400: { description: "Parámetros inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+          },
+        },
+      },
+
+      // ═══════════════════════════════════════════════════════════
+      // FOLLOWERS
+      // ═══════════════════════════════════════════════════════════
+      "/followers": {
+        post: {
+          tags: ["Followers"],
+          summary: "Seguir a un negocio",
+          description: "El usuario autenticado sigue a un negocio. No permite duplicados.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["businessId"], properties: { businessId: { type: "string", example: "123" } } } } },
+          },
+          responses: {
+            201: { description: "Follower creado exitosamente", content: { "application/json": { schema: { $ref: "#/components/schemas/FollowBizResponse" } } } },
+            400: { description: "Datos inválidos o businessId requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+          },
+        },
+        get: {
+          tags: ["Followers"],
+          summary: "Ver negocios que el usuario sigue",
+          description: "Retorna una lista de todos los negocios que el usuario autenticado está siguiendo.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: "Lista de negocios seguidos", content: { "application/json": { schema: { $ref: "#/components/schemas/FollowingsListResponse" } } } },
+            401: { description: "No autenticado" },
+          },
+        },
+      },
+
+      "/followers/{businessId}": {
+        get: {
+          tags: ["Followers"],
+          summary: "Ver seguidores de un negocio",
+          description: "Retorna una lista de usuarios que siguen a un negocio específico.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "string" }, description: "ID del negocio" },
+          ],
+          responses: {
+            200: { description: "Lista de seguidores", content: { "application/json": { schema: { $ref: "#/components/schemas/FollowersListResponse" } } } },
+            400: { description: "businessId requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            401: { description: "No autenticado" },
+          },
+        },
+        delete: {
+          tags: ["Followers"],
+          summary: "Dejar de seguir un negocio",
+          description: "El usuario autenticado deja de seguir a un negocio.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "businessId", in: "path", required: true, schema: { type: "string" }, description: "ID del negocio" },
+          ],
+          responses: {
+            200: { description: "Dejaste de seguir el negocio", content: { "application/json": { schema: { type: "object", properties: { message: { type: "string" } } } } } },
+            400: { description: "businessId requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            404: { description: "No estás siguiendo este negocio", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             401: { description: "No autenticado" },
           },
         },
