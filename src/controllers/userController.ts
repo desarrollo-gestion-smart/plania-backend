@@ -663,7 +663,8 @@ export const getClient = async (req, res) => {
 export const updateClient = async (req, res) => {
   try {
     const { clientId } = req.params;
-    const { nombre, apellido, numero } = req.body || {};
+    const data = req.body?.user || req.body || {};
+    const { nombre, apellido, numero } = data;
     if (!clientId) {
       return res.status(400).json({ error: "clientId es requerido" });
     }
