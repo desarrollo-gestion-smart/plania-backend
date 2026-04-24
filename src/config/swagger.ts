@@ -2657,15 +2657,15 @@ const options = {
         post: {
           tags: ["Followers"],
           summary: "Seguir a un negocio",
-          description: "El usuario autenticado sigue a un negocio. No permite duplicados.",
+          description: "Un usuario sigue a un negocio. No permite duplicados. Requiere token de autenticación.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { type: "object", required: ["businessId"], properties: { businessId: { type: "string", example: "123" } } } } },
+            content: { "application/json": { schema: { type: "object", required: ["userId", "businessId"], properties: { userId: { type: "string", example: "user123" }, businessId: { type: "string", example: "business456" } } } } },
           },
           responses: {
             201: { description: "Follower creado exitosamente", content: { "application/json": { schema: { $ref: "#/components/schemas/FollowBizResponse" } } } },
-            400: { description: "Datos inválidos o businessId requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            400: { description: "Datos inválidos o userId/businessId requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             404: { description: "Negocio no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             401: { description: "No autenticado" },
           },

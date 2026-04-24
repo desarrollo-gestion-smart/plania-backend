@@ -7,11 +7,11 @@ import {
 
 export const followBusinessController = async (req, res) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.body?.userId;
     const businessId = req.body?.businessId;
 
-    if (!businessId) {
-      return res.status(400).json({ error: "businessId es requerido" });
+    if (!userId || !businessId) {
+      return res.status(400).json({ error: "userId y businessId son requeridos" });
     }
 
     const result = await followBusiness(userId, businessId);

@@ -14,7 +14,11 @@
       "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"bash -l -c 'cd ~/plania-backend && pm2 restart plania-backend'\")",
       "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"bash -l -c 'pm2 restart plania'\")",
       "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/health | jq .\")",
-      "Bash(git commit -m 'docs: add followers endpoints to Swagger documentation *)"
+      "Bash(git commit -m 'docs: add followers endpoints to Swagger documentation *)",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"bash -l -c 'cd ~/plania-backend && git pull origin develop && npm run build && pm2 restart plania'\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/docs.json | head -100\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/docs.json | grep -o '\\\\\"\\\\/followers[^\\\\\"]*\\\\\"' | sort | uniq\")",
+      "Bash(git commit -m 'fix: require userId explicitly in POST /followers request body *)"
     ]
   }
 }
