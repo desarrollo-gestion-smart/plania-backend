@@ -45,7 +45,10 @@ export const getFollowersByBusinessController = async (req, res) => {
 
 export const getUserFollowingsController = async (req, res) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.query?.userId;
+    if (!userId) {
+      return res.status(400).json({ error: "userId es requerido" });
+    }
     const followings = await getUserFollowings(userId);
     return res.status(200).json({ followings, total: followings.length });
   } catch (error) {

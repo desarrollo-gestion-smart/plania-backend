@@ -12,8 +12,8 @@ const router = express.Router();
 // POST /api/followers - Usuario sigue a un negocio
 router.post("/followers", authenticateToken, followBusinessController);
 
-// GET /api/followers - Ver negocios que el usuario sigue
-router.get("/followers", authenticateToken, getUserFollowingsController);
+// GET /api/followers-business - Ver negocios que un usuario sigue (filtro por userId)
+router.get("/followers-business", authenticateToken, getUserFollowingsController);
 
 // GET /api/followers/:businessId - Ver seguidores de un negocio
 router.get("/followers/:businessId", authenticateToken, getFollowersByBusinessController);

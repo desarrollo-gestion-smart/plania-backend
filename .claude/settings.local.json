@@ -18,7 +18,10 @@
       "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"bash -l -c 'cd ~/plania-backend && git pull origin develop && npm run build && pm2 restart plania'\")",
       "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/docs.json | head -100\")",
       "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/docs.json | grep -o '\\\\\"\\\\/followers[^\\\\\"]*\\\\\"' | sort | uniq\")",
-      "Bash(git commit -m 'fix: require userId explicitly in POST /followers request body *)"
+      "Bash(git commit -m 'fix: require userId explicitly in POST /followers request body *)",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/docs.json | grep -o '\\\\\"post\\\\\":{\\\\\"tags\\\\\":\\\\[\\\\\"Followers\\\\\"\\\\].*?\\\\\"401\\\\\"' | head -1\")",
+      "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/docs.json | grep -o 'userId.*businessId' | head -3\")",
+      "Bash(git commit -m 'feat: add GET /followers-business endpoint with userId query filter *)"
     ]
   }
 }

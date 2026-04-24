@@ -2670,13 +2670,20 @@ const options = {
             401: { description: "No autenticado" },
           },
         },
+      },
+
+      "/followers-business": {
         get: {
           tags: ["Followers"],
-          summary: "Ver negocios que el usuario sigue",
-          description: "Retorna una lista de todos los negocios que el usuario autenticado está siguiendo.",
+          summary: "Ver negocios que un usuario sigue",
+          description: "Retorna una lista de todos los negocios que un usuario específico está siguiendo.",
           security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "userId", in: "query", required: true, schema: { type: "string" }, description: "ID del usuario" },
+          ],
           responses: {
             200: { description: "Lista de negocios seguidos", content: { "application/json": { schema: { $ref: "#/components/schemas/FollowingsListResponse" } } } },
+            400: { description: "userId requerido", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             401: { description: "No autenticado" },
           },
         },
