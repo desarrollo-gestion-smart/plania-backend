@@ -1122,6 +1122,62 @@ const options = {
           },
         },
       },
+      "/promotions": {
+        get: {
+          tags: ["Servicios"],
+          summary: "Listar todas las promociones",
+          description: "Obtiene una lista de todas las promociones disponibles en la plataforma, ordenadas por fecha de creación (más recientes primero). Incluye información del negocio que ofrece cada promoción.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Lista de promociones",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      promotions: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            id: { type: "number" },
+                            businessId: { type: "number" },
+                            name: { type: "string", example: "50% descuento en cortes" },
+                            type: { type: "string" },
+                            duration: { type: "number", nullable: true },
+                            price: { type: "number" },
+                            category: { type: "string", example: "promotion" },
+                            description: { type: "string" },
+                            image: { type: "string", nullable: true, description: "URL de la imagen de la promoción" },
+                            promotionTerms: { type: "string" },
+                            promotionValidUntil: { type: "string", nullable: true, example: "25/12/2025" },
+                            promotionValidIndefinite: { type: "boolean" },
+                            archived: { type: "boolean" },
+                            createdAt: { type: "string", format: "date-time" },
+                            business: {
+                              type: "object",
+                              properties: {
+                                id: { type: "number" },
+                                name: { type: "string" },
+                                avatar: { type: "string", nullable: true },
+                                banner: { type: "string", nullable: true },
+                                direccion: { type: "object", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      total: { type: "number" },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: "No autenticado" },
+          },
+        },
+      },
       "/services-general": {
         get: {
           tags: ["Servicios"],

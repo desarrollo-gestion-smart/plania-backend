@@ -1,5 +1,5 @@
 import { uploadImageToFirebase } from "../services/firebaseService.js";
-import { createService, updateService, deleteService, getServicesByBusiness, getGeneralServicesByBusiness, getServiceTypesByBusiness } from "../services/firestoreService.js";
+import { createService, updateService, deleteService, getServicesByBusiness, getGeneralServicesByBusiness, getServiceTypesByBusiness, getAllPromotions } from "../services/firestoreService.js";
 
 export const createServiceController = async (req, res) => {
   try {
@@ -99,6 +99,16 @@ export const listGeneralServicesController = async (req, res) => {
     return res.status(200).json(payload);
   } catch (error) {
     const msg = error?.message || "Error listando servicios en general";
+    return res.status(500).json({ error: msg });
+  }
+};
+
+export const listAllPromotionsController = async (req, res) => {
+  try {
+    const promotions = await getAllPromotions();
+    return res.status(200).json({ promotions, total: promotions.length });
+  } catch (error) {
+    const msg = error?.message || "Error listando promociones";
     return res.status(500).json({ error: msg });
   }
 };

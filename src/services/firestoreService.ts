@@ -3873,3 +3873,78 @@ export const getBusinessMostUsedTypes = async (businessId) => {
     throw new Error(error.message);
   }
 };
+
+export const getAllPromotions = async () => {
+  try {
+    const snapshot = await db
+      .collection("services")
+      .where("category", "==", "promotion")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const promotions = [];
+    const businessIds = new Set();
+
+    snapshot.docs.forEach((d) => {
+      const s = d.data() || {};
+      promotions.push({
+        id: s.id ?? Number(d.id),
+        businessId: Number(s.businessId),
+        name: s.name ?? "",
+        type: s.type ?? "",
+        duration: s.duration ?? null,
+        price: s.price ?? null,
+        category: s.category ?? "promotion",
+        description: s.description ?? "",
+        image: s.image ?? null,
+        promotionTerms: s.promotionTerms ?? "",
+        promotionValidUntil: s.promotionValidUntil ?? null,
+        promotionValidIndefinite: s.promotionValidIndefinite ?? false,
+        archived: s.archived ?? false,
+        createdAt: s.createdAt?.toDate?.()?.toISOString() ?? null,
+      });
+      businessIds.add(Number(s.businessId));
+    });
+
+    // Obtener información de los negocios
+    const businessMap = new Map();
+    if (businessIds.size > 0) {
+      const businessIdArray = Array.from(businessIds);
+      const chunks = [];
+      for (let i = 0; i < businessIdArray.length; i += 10) {
+        chunks.push(businessIdArray.slice(i, i + 10));
+      }
+
+      const businessSnaps = await Promise.all(
+        chunks.map((chunk) =>
+          db.collection("user-business").where("id", "in", chunk).get(),
+        ),
+      );
+
+      businessSnaps.forEach((snap) => {
+        snap.docs.forEach((doc) => {
+          const b = doc.data() || {};
+          const id = Number(b.id ?? doc.id);
+          businessMap.set(id, {
+            id,
+            name: b.name ?? b.nombre ?? "",
+            avatar: b.avatar ?? null,
+            banner: b.banner ?? null,
+            direccion: b.direccion ?? null,
+          });
+        });
+      });
+    }
+
+    // Agregar información del negocio a cada promoción
+    const result = promotions.map((promo) => ({
+      ...promo,
+      business: businessMap.get(promo.businessId) ?? null,
+    }));
+
+    return result;
+  } catch (error) {
+    console.error("Firestore error obteniendo promociones:", error);
+    throw new Error(error.message);
+  }
+};
