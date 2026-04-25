@@ -1039,12 +1039,32 @@ const options = {
       "/services": {
         post: {
           tags: ["Servicios"],
-          summary: "Crear servicio",
-          description: "Crea un servicio para un negocio. El campo archived se inicializa en false por defecto.",
+          summary: "Crear servicio o promoción",
+          description: "Crea un servicio o promoción para un negocio. El campo archived se inicializa en false por defecto. Para servicios con category=promotion, se requiere promotionTerms y una fecha de validez o promotionValidIndefinite=true. Soporta subida de imagen como archivo.",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
-            content: { "application/json": { schema: { $ref: "#/components/schemas/CreateServiceRequest" } } },
+            content: {
+              "multipart/form-data": {
+                schema: {
+                  type: "object",
+                  required: ["businessId", "name", "type", "duration", "price", "category"],
+                  properties: {
+                    businessId: { type: "number", example: 123 },
+                    name: { type: "string", example: "Corte de cabello" },
+                    type: { type: "string", example: "hair-cut" },
+                    duration: { type: "number", example: 30, description: "Duración en minutos" },
+                    price: { type: "number", example: 50 },
+                    category: { type: "string", enum: ["service", "promotion"], example: "promotion" },
+                    description: { type: "string", description: "Descripción opcional" },
+                    promotionTerms: { type: "string", description: "Términos de la promoción (requerido si category=promotion)" },
+                    promotionValidUntil: { type: "string", description: "Formato dd/MM/YYYY (ej: 25/12/2025)" },
+                    promotionValidIndefinite: { type: "boolean", description: "true para promoción sin fecha de vencimiento" },
+                    image: { type: "string", format: "binary", description: "Imagen del servicio/promoción (opcional)" },
+                  },
+                },
+              },
+            },
           },
           responses: {
             201: { description: "Servicio creado", content: { "application/json": { schema: { type: "object", properties: { service: { $ref: "#/components/schemas/Service" } } } } } },
