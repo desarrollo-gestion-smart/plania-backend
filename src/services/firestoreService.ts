@@ -2326,6 +2326,7 @@ export const createService = async (
   promotionTerms,
   promotionValidUntil,
   promotionValidIndefinite,
+  image = undefined,
 ) => {
   try {
     const bizIdNum = Number(businessId);
@@ -2411,6 +2412,7 @@ export const createService = async (
       promotionTerms: promoTerms,
       promotionValidUntil: promoValidUntilStr,
       promotionValidIndefinite: promoValidIndef,
+      image: image ?? null,
       archived: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };

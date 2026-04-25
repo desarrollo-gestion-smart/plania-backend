@@ -1,3 +1,4 @@
+import { uploadImageToFirebase } from "../services/firebaseService.js";
 import { createService, updateService, deleteService, getServicesByBusiness, getGeneralServicesByBusiness, getServiceTypesByBusiness } from "../services/firestoreService.js";
 
 export const createServiceController = async (req, res) => {
@@ -6,7 +7,15 @@ export const createServiceController = async (req, res) => {
     if (!businessId || !name || !type || duration === undefined || price === undefined || !category) {
       return res.status(400).json({ error: "Campos requeridos: businessId, name, type, duration, price, category" });
     }
-    const service = await createService(businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite);
+
+    let image = undefined;
+    if (req.file) {
+      console.log("[createServiceController] Uploading service image:", { name: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype });
+      image = await uploadImageToFirebase(req.file, businessId);
+      console.log("[createServiceController] Image uploaded:", image);
+    }
+
+    const service = await createService(businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite, image);
     return res.status(201).json({ service });
   } catch (error) {
     const msg = error?.message || "Error creando servicio";

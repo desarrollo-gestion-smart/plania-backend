@@ -1,10 +1,12 @@
 import express from "express";
+import multer from "multer";
 import { createServiceController, updateServiceController, deleteServiceController, listServicesController, listGeneralServicesController, listServiceTypesController } from "../controllers/servicesController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
-router.post("/services", authenticateToken, authorizeRoles("business"), createServiceController);
+router.post("/services", authenticateToken, authorizeRoles("business"), upload.single("image"), createServiceController);
 router.patch("/services/:serviceId", authenticateToken, authorizeRoles("business"), updateServiceController);
 router.delete("/services/:serviceId", authenticateToken, authorizeRoles("business"), deleteServiceController);
 router.get("/services-general", authenticateToken, listGeneralServicesController);
