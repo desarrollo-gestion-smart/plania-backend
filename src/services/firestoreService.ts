@@ -3879,7 +3879,6 @@ export const getAllPromotions = async () => {
     const snapshot = await db
       .collection("services")
       .where("category", "==", "promotion")
-      .orderBy("createdAt", "desc")
       .get();
 
     const promotions = [];
@@ -3937,10 +3936,16 @@ export const getAllPromotions = async () => {
     }
 
     // Agregar información del negocio a cada promoción
-    const result = promotions.map((promo) => ({
-      ...promo,
-      business: businessMap.get(promo.businessId) ?? null,
-    }));
+    const result = promotions
+      .map((promo) => ({
+        ...promo,
+        business: businessMap.get(promo.businessId) ?? null,
+      }))
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
 
     return result;
   } catch (error) {
