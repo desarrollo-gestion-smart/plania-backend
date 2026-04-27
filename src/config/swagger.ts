@@ -1178,6 +1178,54 @@ const options = {
           },
         },
       },
+      "/promotions/{promotionId}": {
+        get: {
+          tags: ["Servicios"],
+          summary: "Obtener detalle de una promoción",
+          description: "Obtiene los detalles completos de una promoción específica incluyendo información del negocio que la ofrece.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "promotionId", in: "path", required: true, schema: { type: "number" }, description: "ID de la promoción" },
+          ],
+          responses: {
+            200: {
+              description: "Detalle de la promoción",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      promotion: {
+                        type: "object",
+                        properties: {
+                          id: { type: "number", example: 15 },
+                          businessId: { type: "number", example: 65 },
+                          businessName: { type: "string", example: "Peluquería Juan" },
+                          name: { type: "string", example: "Corte para caballeros" },
+                          type: { type: "string", example: "haircut" },
+                          duration: { type: "number", nullable: true, example: 15 },
+                          price: { type: "number", example: 25.50 },
+                          category: { type: "string", example: "promotion" },
+                          description: { type: "string", example: "Corte moderno con detalles" },
+                          image: { type: "string", nullable: true, description: "URL de la imagen de la promoción" },
+                          promotionTerms: { type: "string", example: "No válido con otros descuentos" },
+                          promotionValidUntil: { type: "string", nullable: true, example: "31/12/2024", description: "Formato dd/MM/YYYY" },
+                          promotionValidIndefinite: { type: "boolean", example: false },
+                          archived: { type: "boolean", example: false },
+                          createdAt: { type: "string", format: "date-time", nullable: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: "Parámetros inválidos" },
+            401: { description: "No autenticado" },
+            404: { description: "Promoción no encontrada" },
+          },
+        },
+      },
       "/services-general": {
         get: {
           tags: ["Servicios"],
