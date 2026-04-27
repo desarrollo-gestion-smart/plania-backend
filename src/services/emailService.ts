@@ -1,16 +1,19 @@
 export const sendPasswordResetEmail = async (correo, resetLink) => {
   try {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      throw new Error("RESEND_API_KEY no está configurada en las variables de entorno");
-    }
+    const { createTransport } = await import("nodemailer");
 
-    const { Resend } = await import("resend");
-    const resend = new Resend(apiKey);
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    const transporter = createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || "587"),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
 
-    const result = await resend.emails.send({
-      from: fromEmail,
+    const mailOptions = {
+      from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
       to: correo,
       subject: "Recuperar contraseña - Plania",
       html: `
@@ -27,14 +30,10 @@ export const sendPasswordResetEmail = async (correo, resetLink) => {
           <p style="color: #999; font-size: 11px;">© 2024 Plania. Todos los derechos reservados.</p>
         </div>
       `,
-    });
+    };
 
-    if (result.error) {
-      console.error("[sendPasswordResetEmail] Error enviando email:", result.error);
-      throw new Error(`Error enviando email: ${result.error.message}`);
-    }
-
-    console.log("[sendPasswordResetEmail] Email enviado exitosamente:", { to: correo, id: result.data?.id });
+    const result = await transporter.sendMail(mailOptions);
+    console.log("[sendPasswordResetEmail] Email enviado exitosamente:", { to: correo, messageId: result.messageId });
     return result;
   } catch (error) {
     console.error("[sendPasswordResetEmail] Error:", error);
