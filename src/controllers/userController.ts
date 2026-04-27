@@ -779,35 +779,45 @@ export const deleteBusiness = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
-    const { correo } = req.body;
+    const { numero } = req.body;
 
-    if (!correo) {
-      return res.status(400).json({ error: "Correo electrónico es requerido" });
+    if (!numero) {
+      return res.status(400).json({ error: "Número de teléfono es requerido" });
     }
 
-    const business = await getBusinessByEmail(correo);
-    if (!business) {
-      return res.status(200).json({ message: "Si el correo existe, se enviará un enlace de recuperación" });
+    const numeroLimpio = String(numero).trim();
+    if (!/^\d+$/.test(numeroLimpio)) {
+      return res.status(400).json({ error: "Número debe contener solo dígitos" });
     }
-
-    const token = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-
-    await savePasswordResetToken(business.id, tokenHash, expiresAt);
-
-    const frontendUrl = process.env.FRONTEND_URL || "https://plania.ejesatelital.com";
-    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
 
     try {
-      const { sendPasswordResetEmail } = await import("../services/emailService.js");
-      await sendPasswordResetEmail(correo, resetLink);
-      console.log("[forgotPassword] Email de recuperación enviado a:", correo);
-    } catch (emailError) {
-      console.error("[forgotPassword] Error enviando email, pero el token se guardó:", emailError);
+      const business = await getBusinessUserByNumero(numeroLimpio);
+
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+      await savePasswordResetToken(business.id, tokenHash, expiresAt);
+
+      const frontendUrl = process.env.FRONTEND_URL || "https://plania.ejesatelital.com";
+      const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+      const message = `Tu enlace para recuperar contraseña: ${resetLink}\n\nEste enlace expira en 1 hora.`;
+
+      try {
+        await sendBusinessSMS(numeroLimpio, message);
+        console.log("[forgotPassword] SMS enviado a:", numeroLimpio);
+      } catch (smsError) {
+        console.error("[forgotPassword] Error enviando SMS, pero el token se guardó:", smsError);
+      }
+    } catch (businessError) {
+      if (businessError.message === "Credenciales incorrectas") {
+        // El negocio no existe, pero respondemos igual por seguridad
+      } else {
+        throw businessError;
+      }
     }
 
-    return res.status(200).json({ message: "Si el correo existe, se enviará un enlace de recuperación" });
+    return res.status(200).json({ message: "Si el número existe, recibirás un SMS con el enlace de recuperación" });
   } catch (error) {
     console.error("[forgotPassword] Error:", error);
     return res.status(500).json({ error: "Error procesando solicitud de recuperación" });
