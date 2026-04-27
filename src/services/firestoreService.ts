@@ -3952,3 +3952,44 @@ export const getAllPromotions = async () => {
     throw new Error(error.message);
   }
 };
+
+export const getPromotionById = async (promotionId) => {
+  try {
+    const sid = String(promotionId);
+    const ref = db.collection("services").doc(sid);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new Error("Promotion not found");
+    }
+    const s = doc.data() || {};
+    if (s.category !== "promotion") {
+      throw new Error("Service is not a promotion");
+    }
+
+    // Obtener información del negocio
+    const bizId = Number(s.businessId);
+    const bizDoc = await db.collection("clients").doc(String(bizId)).get();
+    const bizData = bizDoc.exists ? bizDoc.data() : {};
+
+    return {
+      id: s.id ?? Number(sid),
+      businessId: bizId,
+      businessName: bizData.nombre ?? "",
+      name: s.name ?? "",
+      type: s.type ?? "",
+      duration: s.duration ?? null,
+      price: s.price ?? null,
+      category: s.category ?? "promotion",
+      description: s.description ?? "",
+      image: s.image ?? null,
+      promotionTerms: s.promotionTerms ?? "",
+      promotionValidUntil: s.promotionValidUntil ?? null,
+      promotionValidIndefinite: s.promotionValidIndefinite ?? false,
+      archived: s.archived ?? false,
+      createdAt: s.createdAt?.toDate?.()?.toISOString() ?? null,
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo promoción:", error);
+    throw new Error(error.message);
+  }
+};

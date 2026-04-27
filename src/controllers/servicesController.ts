@@ -1,5 +1,5 @@
 import { uploadImageToFirebase } from "../services/firebaseService.js";
-import { createService, updateService, deleteService, getServicesByBusiness, getGeneralServicesByBusiness, getServiceTypesByBusiness, getAllPromotions } from "../services/firestoreService.js";
+import { createService, updateService, deleteService, getServicesByBusiness, getGeneralServicesByBusiness, getServiceTypesByBusiness, getAllPromotions, getPromotionById } from "../services/firestoreService.js";
 
 export const createServiceController = async (req, res) => {
   try {
@@ -110,5 +110,20 @@ export const listAllPromotionsController = async (req, res) => {
   } catch (error) {
     const msg = error?.message || "Error listando promociones";
     return res.status(500).json({ error: msg });
+  }
+};
+
+export const getPromotionByIdController = async (req, res) => {
+  try {
+    const { promotionId } = req.params;
+    if (!promotionId) {
+      return res.status(400).json({ error: "promotionId es requerido" });
+    }
+    const promotion = await getPromotionById(promotionId);
+    return res.status(200).json({ promotion });
+  } catch (error) {
+    const msg = error?.message || "Error obteniendo promoción";
+    const code = /not found/i.test(msg) ? 404 : 500;
+    return res.status(code).json({ error: msg });
   }
 };

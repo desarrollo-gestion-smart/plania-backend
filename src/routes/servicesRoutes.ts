@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { createServiceController, updateServiceController, deleteServiceController, listServicesController, listGeneralServicesController, listServiceTypesController, listAllPromotionsController } from "../controllers/servicesController.js";
+import { createServiceController, updateServiceController, deleteServiceController, listServicesController, listGeneralServicesController, listServiceTypesController, listAllPromotionsController, getPromotionByIdController } from "../controllers/servicesController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -11,6 +11,7 @@ router.patch("/services/:serviceId", authenticateToken, authorizeRoles("business
 router.delete("/services/:serviceId", authenticateToken, authorizeRoles("business"), deleteServiceController);
 router.get("/services-general", authenticateToken, listGeneralServicesController);
 router.get("/promotions", authenticateToken, listAllPromotionsController);
+router.get("/promotions/:promotionId", authenticateToken, getPromotionByIdController);
 router.get("/services/:businessId", authenticateToken, listServicesController);
 router.get("/service-types/:businessId", authenticateToken, listServiceTypesController);
 
