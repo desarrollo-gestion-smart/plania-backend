@@ -28,7 +28,10 @@
       "Bash(ssh -i /c/Users/aleja/Downloads/plania.pem bitnami@3.80.174.154 \"curl -s http://localhost:3000/api/docs.json | python3 -c \\\\\"import sys, json; data = json.load\\(sys.stdin\\); print\\('FollowingsListResponse' in data.get\\('components', {}\\).get\\('schemas', {}\\)\\)\\\\\"\")",
       "Bash(node -e \"const sw = require\\('./dist/config/swagger.js'\\); console.log\\('FollowingsListResponse exists:', 'FollowingsListResponse' in sw.swaggerSpec.components.schemas\\)\")",
       "Bash(npx tsc *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(ssh -i \"c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem\" bitnami@3.80.174.154 \"cd /home/bitnami/plania-backend && /opt/bitnami/node/bin/npm run build && /opt/bitnami/node/bin/pm2 restart plania\")",
+      "Bash(ssh -i \"c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem\" bitnami@3.80.174.154 \"cd /home/bitnami/plania-backend && /opt/bitnami/node/bin/node /opt/bitnami/node/bin/npm run build && /opt/bitnami/node/bin/pm2 restart plania\")",
+      "Bash(ssh -i 'c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem' bitnami@3.80.174.154 'export PATH=/opt/bitnami/node/bin:$PATH && cd /home/bitnami/plania-backend && npm run build && pm2 restart plania')"
     ]
   }
 }
