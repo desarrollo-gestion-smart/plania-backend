@@ -2135,10 +2135,66 @@ export const resetBusinessPassword = async (businessId, hashedPassword) => {
       password: hashedPassword,
       resetPasswordToken: admin.firestore.FieldValue.delete(),
       resetPasswordExpiresAt: admin.firestore.FieldValue.delete(),
+      resetPasswordCode: admin.firestore.FieldValue.delete(),
+      resetPasswordCodeExpiresAt: admin.firestore.FieldValue.delete(),
     });
     console.log("[resetBusinessPassword] Contraseña actualizada para negocio:", businessId);
   } catch (error) {
     console.error("Firestore error reseteando contraseña:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const savePasswordResetCode = async (businessId, hashedCode, expiresAt) => {
+  try {
+    const bizId = String(businessId);
+    const ref = db.collection("user-business").doc(bizId);
+    await ref.update({
+      resetPasswordCode: hashedCode,
+      resetPasswordCodeExpiresAt: expiresAt,
+    });
+    console.log("[savePasswordResetCode] Código guardado para negocio:", businessId);
+  } catch (error) {
+    console.error("Firestore error guardando reset code:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getBusinessByPasswordResetCode = async (hashedCode) => {
+  try {
+    const snapshot = await db
+      .collection("user-business")
+      .where("resetPasswordCode", "==", hashedCode)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: data.id ?? Number(doc.id),
+      ...data,
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo negocio por reset code:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const clearPasswordResetCode = async (businessId) => {
+  try {
+    const bizId = String(businessId);
+    const ref = db.collection("user-business").doc(bizId);
+    await ref.update({
+      resetPasswordCode: admin.firestore.FieldValue.delete(),
+      resetPasswordCodeExpiresAt: admin.firestore.FieldValue.delete(),
+    });
+    console.log("[clearPasswordResetCode] Código limpiado para negocio:", businessId);
+  } catch (error) {
+    console.error("Firestore error limpiando reset code:", error);
     throw new Error(error.message);
   }
 };

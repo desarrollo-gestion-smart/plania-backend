@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getBusinessIds, getUsers, getClient, updateClient, deleteClient, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController, forgotPassword, resetPassword } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getBusinessIds, getUsers, getClient, updateClient, deleteClient, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController, forgotPassword, verifyForgotPassword, resetPassword } from "../controllers/userController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import admin from "firebase-admin";
 import { verifyRefreshToken, generateToken, generateRefreshToken } from "../utils/jwt.js";
@@ -112,6 +112,9 @@ router.post("/resend-business", resendBusiness);
 
 // POST /api/forgot-password
 router.post("/forgot-password", forgotPassword);
+
+// POST /api/verify-forgot-password
+router.post("/verify-forgot-password", verifyForgotPassword);
 
 // POST /api/reset-password
 router.post("/reset-password", resetPassword);

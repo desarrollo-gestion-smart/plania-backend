@@ -1,7 +1,7 @@
 import admin from "firebase-admin";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
-import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, getAllClients, getClientById, updateClientById, deleteClientById, getAllBusinesses, deleteBusinessUser, getBusinessByEmail, getBusinessByResetToken, savePasswordResetToken, resetBusinessPassword } from "../services/firestoreService.js";
+import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, getAllClients, getClientById, updateClientById, deleteClientById, getAllBusinesses, deleteBusinessUser, getBusinessByEmail, getBusinessByResetToken, savePasswordResetToken, resetBusinessPassword, savePasswordResetCode, getBusinessByPasswordResetCode, clearPasswordResetCode } from "../services/firestoreService.js";
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
@@ -790,24 +790,24 @@ export const forgotPassword = async (req, res) => {
       return res.status(400).json({ error: "Número debe contener solo dígitos" });
     }
 
+    let businessId = null;
     try {
       const business = await getBusinessUserByNumero(numeroLimpio);
+      businessId = business.id;
 
-      const token = crypto.randomBytes(32).toString("hex");
-      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeHash = crypto.createHash("sha256").update(resetCode).digest("hex");
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-      await savePasswordResetToken(business.id, tokenHash, expiresAt);
+      await savePasswordResetCode(business.id, codeHash, expiresAt);
 
-      const frontendUrl = process.env.FRONTEND_URL || "https://plania.ejesatelital.com";
-      const resetLink = `${frontendUrl}/reset-password?token=${token}`;
-      const message = `Tu enlace para recuperar contraseña: ${resetLink}\n\nEste enlace expira en 1 hora.`;
+      const message = `Tu código de recuperación de contraseña es: ${resetCode}\n\nEste código expira en 15 minutos.`;
 
       try {
         await sendBusinessSMS(numeroLimpio, message);
-        console.log("[forgotPassword] SMS enviado a:", numeroLimpio);
+        console.log("[forgotPassword] SMS con código enviado a:", numeroLimpio);
       } catch (smsError) {
-        console.error("[forgotPassword] Error enviando SMS, pero el token se guardó:", smsError);
+        console.error("[forgotPassword] Error enviando SMS, pero el código se guardó:", smsError);
       }
     } catch (businessError) {
       if (businessError.message === "Credenciales incorrectas") {
@@ -817,10 +817,57 @@ export const forgotPassword = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ message: "Si el número existe, recibirás un SMS con el enlace de recuperación" });
+    return res.status(200).json({
+      message: "Si el número existe, recibirás un SMS con el código de recuperación",
+      businessId
+    });
   } catch (error) {
     console.error("[forgotPassword] Error:", error);
     return res.status(500).json({ error: "Error procesando solicitud de recuperación" });
+  }
+};
+
+export const verifyForgotPassword = async (req, res) => {
+  try {
+    const { businessId, code } = req.body;
+
+    if (!businessId || !code) {
+      return res.status(400).json({ error: "businessId y código son requeridos" });
+    }
+
+    const codeStr = String(code).trim();
+    if (!/^\d{6}$/.test(codeStr)) {
+      return res.status(400).json({ error: "Código debe ser 6 dígitos" });
+    }
+
+    const codeHash = crypto.createHash("sha256").update(codeStr).digest("hex");
+    const business = await getBusinessByPasswordResetCode(codeHash);
+
+    if (!business || business.id !== businessId) {
+      return res.status(400).json({ error: "Código inválido" });
+    }
+
+    const now = new Date();
+    const expiresAt = new Date((business as any)?.resetPasswordCodeExpiresAt || 0);
+    if (now > expiresAt) {
+      return res.status(400).json({ error: "Código expirado" });
+    }
+
+    const tempToken = crypto.randomBytes(32).toString("hex");
+    const tempTokenHash = crypto.createHash("sha256").update(tempToken).digest("hex");
+    const tokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    await savePasswordResetToken(businessId, tempTokenHash, tokenExpiresAt);
+    await clearPasswordResetCode(businessId);
+
+    console.log("[verifyForgotPassword] Código verificado para negocio:", businessId);
+    return res.status(200).json({
+      message: "Código verificado correctamente",
+      token: tempToken
+    });
+  } catch (error) {
+    console.error("[verifyForgotPassword] Error:", error);
+    return res.status(500).json({ error: "Error verificando código" });
   }
 };
 
