@@ -31,7 +31,8 @@
       "Bash(node -e ' *)",
       "Bash(ssh -i \"c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem\" bitnami@3.80.174.154 \"cd /home/bitnami/plania-backend && /opt/bitnami/node/bin/npm run build && /opt/bitnami/node/bin/pm2 restart plania\")",
       "Bash(ssh -i \"c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem\" bitnami@3.80.174.154 \"cd /home/bitnami/plania-backend && /opt/bitnami/node/bin/node /opt/bitnami/node/bin/npm run build && /opt/bitnami/node/bin/pm2 restart plania\")",
-      "Bash(ssh -i 'c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem' bitnami@3.80.174.154 'export PATH=/opt/bitnami/node/bin:$PATH && cd /home/bitnami/plania-backend && npm run build && pm2 restart plania')"
+      "Bash(ssh -i 'c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem' bitnami@3.80.174.154 'export PATH=/opt/bitnami/node/bin:$PATH && cd /home/bitnami/plania-backend && npm run build && pm2 restart plania')",
+      "Bash(ssh -i 'c:\\\\Users\\\\aleja\\\\Downloads\\\\plania.pem' bitnami@3.80.174.154 'export PATH=/opt/bitnami/node/bin:$PATH && cd /home/bitnami/plania-backend && git pull origin develop && npm run build && pm2 restart plania')"
     ]
   }
 }

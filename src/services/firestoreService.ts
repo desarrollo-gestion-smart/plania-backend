@@ -2393,9 +2393,8 @@ export const createService = async (
         }
         promoValidUntilStr = untilStr;
       } else {
-        throw new Error(
-          "validity requerido para promociones: enviar promotionValidUntil (dd/MM/YYYY) o promotionValidIndefinite=true",
-        );
+        promoValidIndef = true;
+        promoValidUntilStr = null;
       }
     }
     const newId = await getNextId("serviceId");
