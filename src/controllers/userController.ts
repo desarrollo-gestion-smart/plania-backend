@@ -17,20 +17,27 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ error: "Nombre y numero son requeridos" });
     }
 
-    // Additional validation for phone number (basic)
-    if (!/^\d+$/.test(numero)) {
-      return res.status(400).json({ error: "Numero debe contener solo digitos" });
+    // Clean phone number: accept +54 prefix (Argentina) or just digits
+    let cleanNumero = String(numero).trim();
+    if (cleanNumero.startsWith("+54")) {
+      cleanNumero = cleanNumero.slice(3); // Remove +54 prefix
+    }
+
+    // Validate that it's only digits after cleaning
+    if (!/^\d+$/.test(cleanNumero)) {
+      return res.status(400).json({ error: "Numero debe contener solo digitos o +54 para Argentina" });
     }
 
     // Generate 6-digit verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Create user with code
-    const user = await createUser(nombre, numero, verificationCode);
+    // Create user with code (store without +54)
+    const user = await createUser(nombre, cleanNumero, verificationCode);
 
-    // Send SMS
+    // Send SMS with +54 prefix
     const message = `Tu código de verificación es: ${verificationCode}`;
-    await sendSMS(numero, message);
+    const smsNumero = `+54${cleanNumero}`;
+    await sendSMS(smsNumero, message);
 
     res.status(200).json({
       message: "Usuario registrado exitosamente. Revisa tu SMS para el código de verificación.",
@@ -66,9 +73,15 @@ export const loginBusiness = async (req, res) => {
     if (rawNumero === undefined || rawNumero === null || rawNumero === "") {
       return res.status(400).json({ error: "Numero es requerido" });
     }
-    const numero = String(rawNumero).trim();
+
+    // Clean phone number: accept +54 prefix (Argentina) or just digits
+    let numero = String(rawNumero).trim();
+    if (numero.startsWith("+54")) {
+      numero = numero.slice(3); // Remove +54 prefix
+    }
+
     if (!/^\d+$/.test(numero)) {
-      return res.status(400).json({ error: "Numero debe contener solo digitos" });
+      return res.status(400).json({ error: "Numero debe contener solo digitos o +54 para Argentina" });
     }
 
     console.log('Login request:', { numero });
