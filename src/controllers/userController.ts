@@ -8,7 +8,6 @@ import { sendBusinessSMS } from "../services/businessSmsService.js";
 import { getBusinessById, updateBusinessPolicies, getBusinessPolicies } from "../services/firestoreService.js";
 import { generateToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { geocodeAddress } from "../services/geocodingService.js";
-import { sendPasswordResetEmail } from "../services/emailService.js";
 
 const db = admin.firestore();
 
@@ -801,6 +800,7 @@ export const forgotPassword = async (req, res) => {
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
 
     try {
+      const { sendPasswordResetEmail } = await import("../services/emailService.js");
       await sendPasswordResetEmail(correo, resetLink);
       console.log("[forgotPassword] Email de recuperación enviado a:", correo);
     } catch (emailError) {
