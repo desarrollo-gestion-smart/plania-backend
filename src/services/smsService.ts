@@ -28,16 +28,24 @@
 
 export const sendSMS = async (to, message) => {
   try {
-    const url = `http://sms.ejesatelital.com/Api/get/send.php?username=ejesatelital&password=asDsb55@@DI&to=57${to}&text=${encodeURIComponent(message)}&from=TEST&coding=8&dlr-mask=8`;
-    console.log('SMS URL:', url);
+    // Clean phone number: remove +54 if present, add 54 prefix for Argentina
+    let phoneNumber = String(to).trim();
+    if (phoneNumber.startsWith("+54")) {
+      phoneNumber = phoneNumber.slice(1); // Remove + but keep 54
+    } else if (!phoneNumber.startsWith("54")) {
+      phoneNumber = `54${phoneNumber}`; // Add 54 prefix if missing
+    }
+
+    const url = `http://sms.ejesatelital.com/Api/get/send.php?username=ejesatelital&password=asDsb55@@DI&to=${phoneNumber}&text=${encodeURIComponent(message)}&from=TEST&coding=8&dlr-mask=8`;
+    console.log('[sendSMS] Enviando SMS a Argentina:', { phoneNumber, message });
 
     const response = await fetch(url);
     const result = await response.text();
 
-    console.log('SMS sent:', { to, message, result });
+    console.log('[sendSMS] SMS enviado exitosamente:', { phoneNumber, message, result });
     return result;
   } catch (error) {
-    console.error('Error sending SMS:', error);
+    console.error('[sendSMS] Error enviando SMS:', error);
     throw new Error(`Error sending SMS: ${error.message}`);
   }
 };
