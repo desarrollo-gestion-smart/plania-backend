@@ -829,10 +829,15 @@ export const forgotPassword = async (req, res) => {
 
 export const verifyForgotPassword = async (req, res) => {
   try {
-    const { businessId, code } = req.body;
+    const { numero, code } = req.body;
 
-    if (!businessId || !code) {
-      return res.status(400).json({ error: "businessId y código son requeridos" });
+    if (!numero || !code) {
+      return res.status(400).json({ error: "Número y código son requeridos" });
+    }
+
+    const numeroLimpio = String(numero).trim();
+    if (!/^\d+$/.test(numeroLimpio)) {
+      return res.status(400).json({ error: "Número debe contener solo dígitos" });
     }
 
     const codeStr = String(code).trim();
@@ -840,31 +845,29 @@ export const verifyForgotPassword = async (req, res) => {
       return res.status(400).json({ error: "Código debe ser 6 dígitos" });
     }
 
-    const codeHash = crypto.createHash("sha256").update(codeStr).digest("hex");
-    const business = await getBusinessByPasswordResetCode(codeHash);
+    try {
+      const business = await getBusinessUserByNumero(numeroLimpio) as any;
+      const codeHash = crypto.createHash("sha256").update(codeStr).digest("hex");
 
-    if (!business || business.id !== businessId) {
-      return res.status(400).json({ error: "Código inválido" });
+      if (business.resetPasswordCode !== codeHash) {
+        return res.status(400).json({ error: "Código inválido" });
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(business.resetPasswordCodeExpiresAt || 0);
+      if (now > expiresAt) {
+        return res.status(400).json({ error: "Código expirado" });
+      }
+
+      await clearPasswordResetCode(business.id);
+      console.log("[verifyForgotPassword] Código verificado para negocio:", business.id);
+      return res.status(200).json({ message: "Código verificado correctamente" });
+    } catch (businessError) {
+      if (businessError.message === "Credenciales incorrectas") {
+        return res.status(400).json({ error: "Número de teléfono no encontrado" });
+      }
+      throw businessError;
     }
-
-    const now = new Date();
-    const expiresAt = new Date((business as any)?.resetPasswordCodeExpiresAt || 0);
-    if (now > expiresAt) {
-      return res.status(400).json({ error: "Código expirado" });
-    }
-
-    const tempToken = crypto.randomBytes(32).toString("hex");
-    const tempTokenHash = crypto.createHash("sha256").update(tempToken).digest("hex");
-    const tokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-    await savePasswordResetToken(businessId, tempTokenHash, tokenExpiresAt);
-    await clearPasswordResetCode(businessId);
-
-    console.log("[verifyForgotPassword] Código verificado para negocio:", businessId);
-    return res.status(200).json({
-      message: "Código verificado correctamente",
-      token: tempToken
-    });
   } catch (error) {
     console.error("[verifyForgotPassword] Error:", error);
     return res.status(500).json({ error: "Error verificando código" });
@@ -873,10 +876,15 @@ export const verifyForgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const { numero, newPassword } = req.body;
 
-    if (!token || !newPassword) {
-      return res.status(400).json({ error: "Token y nueva contraseña son requeridos" });
+    if (!numero || !newPassword) {
+      return res.status(400).json({ error: "Número y nueva contraseña son requeridos" });
+    }
+
+    const numeroLimpio = String(numero).trim();
+    if (!/^\d+$/.test(numeroLimpio)) {
+      return res.status(400).json({ error: "Número debe contener solo dígitos" });
     }
 
     if (newPassword.length < 6) {
@@ -891,23 +899,31 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ error: "La contraseña debe incluir al menos un número" });
     }
 
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    const business = await getBusinessByResetToken(tokenHash);
+    try {
+      const business = await getBusinessUserByNumero(numeroLimpio) as any;
 
-    if (!business) {
-      return res.status(400).json({ error: "Token de recuperación inválido o expirado" });
+      if (!business.resetPasswordVerifiedAt) {
+        return res.status(400).json({ error: "Debe verificar el código primero" });
+      }
+
+      const now = new Date();
+      const verifiedAt = new Date(business.resetPasswordVerifiedAt?.toMillis?.() || 0);
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      if (verifiedAt < tenMinutesAgo) {
+        return res.status(400).json({ error: "La verificación expiró, solicita un nuevo código" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await resetBusinessPassword(business.id, hashedPassword);
+
+      console.log("[resetPassword] Contraseña actualizada para negocio:", business.id);
+      return res.status(200).json({ message: "Contraseña actualizada exitosamente" });
+    } catch (businessError) {
+      if (businessError.message === "Credenciales incorrectas") {
+        return res.status(400).json({ error: "Número de teléfono no encontrado" });
+      }
+      throw businessError;
     }
-
-    const now = new Date();
-    const expiresAt = new Date((business as any)?.resetPasswordExpiresAt || 0);
-    if (now > expiresAt) {
-      return res.status(400).json({ error: "Token de recuperación expirado" });
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await resetBusinessPassword(business.id, hashedPassword);
-
-    return res.status(200).json({ message: "Contraseña actualizada exitosamente" });
   } catch (error) {
     console.error("[resetPassword] Error:", error);
     return res.status(500).json({ error: "Error actualizando contraseña" });

@@ -2137,6 +2137,7 @@ export const resetBusinessPassword = async (businessId, hashedPassword) => {
       resetPasswordExpiresAt: admin.firestore.FieldValue.delete(),
       resetPasswordCode: admin.firestore.FieldValue.delete(),
       resetPasswordCodeExpiresAt: admin.firestore.FieldValue.delete(),
+      resetPasswordVerifiedAt: admin.firestore.FieldValue.delete(),
     });
     console.log("[resetBusinessPassword] Contraseña actualizada para negocio:", businessId);
   } catch (error) {
@@ -2191,6 +2192,7 @@ export const clearPasswordResetCode = async (businessId) => {
     await ref.update({
       resetPasswordCode: admin.firestore.FieldValue.delete(),
       resetPasswordCodeExpiresAt: admin.firestore.FieldValue.delete(),
+      resetPasswordVerifiedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     console.log("[clearPasswordResetCode] Código limpiado para negocio:", businessId);
   } catch (error) {
