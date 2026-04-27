@@ -1,18 +1,22 @@
-import { uploadImageToFirebase } from "../services/firebaseService.js";
+import { uploadImageToFirebase, uploadBase64ToFirebase } from "../services/firebaseService.js";
 import { createService, updateService, deleteService, getServicesByBusiness, getGeneralServicesByBusiness, getServiceTypesByBusiness, getAllPromotions } from "../services/firestoreService.js";
 
 export const createServiceController = async (req, res) => {
   try {
-    const { businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite } = req.body || {};
+    const { businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite, image: bodyImage } = req.body || {};
     if (!businessId || !name || !type || duration === undefined || price === undefined || !category) {
       return res.status(400).json({ error: "Campos requeridos: businessId, name, type, duration, price, category" });
     }
 
     let image = undefined;
     if (req.file) {
-      console.log("[createServiceController] Uploading service image:", { name: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype });
+      console.log("[createServiceController] Uploading service image from multipart:", { name: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype });
       image = await uploadImageToFirebase(req.file, businessId);
       console.log("[createServiceController] Image uploaded:", image);
+    } else if (bodyImage) {
+      console.log("[createServiceController] Uploading service image from base64");
+      image = await uploadBase64ToFirebase(bodyImage, businessId);
+      console.log("[createServiceController] Base64 image uploaded:", image);
     }
 
     const service = await createService(businessId, name, type, duration, price, category, description, promotionTerms, promotionValidUntil, promotionValidIndefinite, image);
