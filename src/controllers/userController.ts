@@ -1,11 +1,14 @@
 import admin from "firebase-admin";
-import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, getAllClients, getClientById, updateClientById, deleteClientById, getAllBusinesses, deleteBusinessUser } from "../services/firestoreService.js";
+import crypto from "crypto";
+import bcrypt from "bcrypt";
+import { createUser, verifyUserCode, resendVerificationCode, createBusinessUser, findBusinessUser, getBusinessUserByNumero, getAppUserByNumero, loginBusinessUser, updateBusinessAvatar, updateBusinessBanner, verifyBusinessCode, resendBusinessVerificationCode, addStaff, getAllUsers, getAllClients, getClientById, updateClientById, deleteClientById, getAllBusinesses, deleteBusinessUser, getBusinessByEmail, getBusinessByResetToken, savePasswordResetToken, resetBusinessPassword } from "../services/firestoreService.js";
 import { uploadImageToFirebase, uploadBase64ToFirebase, uploadFromUrlToFirebase } from "../services/firebaseService.js";
 import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
 import { getBusinessById, updateBusinessPolicies, getBusinessPolicies } from "../services/firestoreService.js";
 import { generateToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { geocodeAddress } from "../services/geocodingService.js";
+import { sendPasswordResetEmail } from "../services/emailService.js";
 
 const db = admin.firestore();
 
@@ -772,5 +775,84 @@ export const deleteBusiness = async (req, res) => {
     }
     console.error("Error eliminando usuario de negocio:", error);
     return res.status(500).json({ error: "Error al eliminar el negocio" });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { correo } = req.body;
+
+    if (!correo) {
+      return res.status(400).json({ error: "Correo electrónico es requerido" });
+    }
+
+    const business = await getBusinessByEmail(correo);
+    if (!business) {
+      return res.status(200).json({ message: "Si el correo existe, se enviará un enlace de recuperación" });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    await savePasswordResetToken(business.id, tokenHash, expiresAt);
+
+    const frontendUrl = process.env.FRONTEND_URL || "https://plania.ejesatelital.com";
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    try {
+      await sendPasswordResetEmail(correo, resetLink);
+      console.log("[forgotPassword] Email de recuperación enviado a:", correo);
+    } catch (emailError) {
+      console.error("[forgotPassword] Error enviando email, pero el token se guardó:", emailError);
+    }
+
+    return res.status(200).json({ message: "Si el correo existe, se enviará un enlace de recuperación" });
+  } catch (error) {
+    console.error("[forgotPassword] Error:", error);
+    return res.status(500).json({ error: "Error procesando solicitud de recuperación" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: "Token y nueva contraseña son requeridos" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
+    }
+
+    if (!/[A-Z]/.test(newPassword)) {
+      return res.status(400).json({ error: "La contraseña debe incluir al menos una mayúscula" });
+    }
+
+    if (!/\d/.test(newPassword)) {
+      return res.status(400).json({ error: "La contraseña debe incluir al menos un número" });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const business = await getBusinessByResetToken(tokenHash);
+
+    if (!business) {
+      return res.status(400).json({ error: "Token de recuperación inválido o expirado" });
+    }
+
+    const now = new Date();
+    const expiresAt = new Date((business as any)?.resetPasswordExpiresAt || 0);
+    if (now > expiresAt) {
+      return res.status(400).json({ error: "Token de recuperación expirado" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await resetBusinessPassword(business.id, hashedPassword);
+
+    return res.status(200).json({ message: "Contraseña actualizada exitosamente" });
+  } catch (error) {
+    console.error("[resetPassword] Error:", error);
+    return res.status(500).json({ error: "Error actualizando contraseña" });
   }
 };

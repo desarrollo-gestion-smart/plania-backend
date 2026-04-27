@@ -2062,6 +2062,87 @@ export const getBusinessById = async (businessId) => {
   }
 };
 
+export const getBusinessByEmail = async (correo) => {
+  try {
+    const correoLower = String(correo).trim().toLowerCase();
+    const snapshot = await db
+      .collection("user-business")
+      .where("correo", "==", correoLower)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: data.id ?? Number(doc.id),
+      correo: data.correo ?? "",
+      ...data,
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo negocio por email:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const getBusinessByResetToken = async (tokenHash) => {
+  try {
+    const snapshot = await db
+      .collection("user-business")
+      .where("resetPasswordToken", "==", tokenHash)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: data.id ?? Number(doc.id),
+      ...data,
+    };
+  } catch (error) {
+    console.error("Firestore error obteniendo negocio por reset token:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const savePasswordResetToken = async (businessId, tokenHash, expiresAt) => {
+  try {
+    const bizId = String(businessId);
+    const ref = db.collection("user-business").doc(bizId);
+    await ref.update({
+      resetPasswordToken: tokenHash,
+      resetPasswordExpiresAt: expiresAt,
+    });
+    console.log("[savePasswordResetToken] Token guardado para negocio:", businessId);
+  } catch (error) {
+    console.error("Firestore error guardando reset token:", error);
+    throw new Error(error.message);
+  }
+};
+
+export const resetBusinessPassword = async (businessId, hashedPassword) => {
+  try {
+    const bizId = String(businessId);
+    const ref = db.collection("user-business").doc(bizId);
+    await ref.update({
+      password: hashedPassword,
+      resetPasswordToken: admin.firestore.FieldValue.delete(),
+      resetPasswordExpiresAt: admin.firestore.FieldValue.delete(),
+    });
+    console.log("[resetBusinessPassword] Contraseña actualizada para negocio:", businessId);
+  } catch (error) {
+    console.error("Firestore error reseteando contraseña:", error);
+    throw new Error(error.message);
+  }
+};
+
 export const getAllUsers = async () => {
   try {
     const snapshot = await db

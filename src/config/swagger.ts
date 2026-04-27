@@ -1036,6 +1036,57 @@ const options = {
           },
         },
       },
+      "/forgot-password": {
+        post: {
+          tags: ["Auth - Negocios"],
+          summary: "Solicitar recuperación de contraseña",
+          description: "Envía un enlace de recuperación al correo del negocio. No revela si el correo existe.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["correo"],
+                  properties: {
+                    correo: { type: "string", format: "email", example: "negocio@example.com", description: "Correo electrónico del negocio" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Solicitud procesada", content: { "application/json": { schema: { type: "object", properties: { message: { type: "string" } } } } } },
+            400: { description: "Parámetros inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/reset-password": {
+        post: {
+          tags: ["Auth - Negocios"],
+          summary: "Restablecer contraseña con token",
+          description: "Actualiza la contraseña usando el token enviado por email. El token expira en 1 hora.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["token", "newPassword"],
+                  properties: {
+                    token: { type: "string", description: "Token de recuperación del email" },
+                    newPassword: { type: "string", format: "password", description: "Nueva contraseña (mínimo 6 caracteres, 1 mayúscula, 1 número)" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "Contraseña actualizada", content: { "application/json": { schema: { type: "object", properties: { message: { type: "string" } } } } } },
+            400: { description: "Token inválido, expirado o contraseña débil", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
       "/services": {
         post: {
           tags: ["Servicios"],

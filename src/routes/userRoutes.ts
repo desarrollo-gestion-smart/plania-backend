@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getBusinessIds, getUsers, getClient, updateClient, deleteClient, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController } from "../controllers/userController.js";
+import { registerUser, verifyUser, resendCode, registerBusiness, loginBusiness, loginBusinessWithPassword, verifyBusiness, resendBusiness, uploadBusinessAvatar, uploadBusinessBanner, configureBusiness, getBusinessInfo, getBusinessIds, getUsers, getClient, updateClient, deleteClient, deleteBusiness, getBusinessPoliciesController, updateBusinessPoliciesController, forgotPassword, resetPassword } from "../controllers/userController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import admin from "firebase-admin";
 import { verifyRefreshToken, generateToken, generateRefreshToken } from "../utils/jwt.js";
@@ -109,6 +109,12 @@ router.post("/verify-business", verifyBusiness);
 
 // POST /api/resend-business
 router.post("/resend-business", resendBusiness);
+
+// POST /api/forgot-password
+router.post("/forgot-password", forgotPassword);
+
+// POST /api/reset-password
+router.post("/reset-password", resetPassword);
 
 // ─── Rutas protegidas (requieren autenticación) ────────────────────────
 // Clients
