@@ -805,7 +805,7 @@ export const forgotPassword = async (req, res) => {
 
       try {
         await sendBusinessSMS(numeroLimpio, message);
-        console.log("[forgotPassword] SMS con código enviado a:", numeroLimpio);
+        console.log("[forgotPassword] SMS con código enviado a: +57" + numeroLimpio);
       } catch (smsError) {
         console.error("[forgotPassword] Error enviando SMS, pero el código se guardó:", smsError);
       }
