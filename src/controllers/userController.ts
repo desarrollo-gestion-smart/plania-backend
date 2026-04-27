@@ -5,6 +5,7 @@ import { sendSMS } from "../services/smsService.js";
 import { sendBusinessSMS } from "../services/businessSmsService.js";
 import { getBusinessById, updateBusinessPolicies, getBusinessPolicies } from "../services/firestoreService.js";
 import { generateToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import { geocodeAddress } from "../services/geocodingService.js";
 
 const db = admin.firestore();
 
@@ -514,6 +515,10 @@ export const configureBusiness = async (req, res) => {
         ...direccion,
         address,
       };
+      const { latitude, longitude } = await geocodeAddress(address);
+      updateData.latitude = latitude;
+      updateData.longitude = longitude;
+      console.log("[configureBusiness] Geocoded address:", { address, latitude, longitude });
     }
     if (avatarUrl) updateData.avatar = avatarUrl;
     if (bannerUrl) updateData.banner = bannerUrl;

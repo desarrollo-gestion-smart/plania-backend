@@ -2045,6 +2045,8 @@ export const getBusinessById = async (businessId) => {
         data?.direccion && typeof data.direccion === "object"
           ? data.direccion
           : null,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
       isInitialSetupComplete: !!data.isInitialSetupComplete,
       policies: {
         cancellationAdvanceMinutes:
@@ -2306,6 +2308,8 @@ export const getAllBusinesses = async () => {
         avatar: data.avatar ?? null,
         banner: data.banner ?? null,
         name: data.name ?? "",
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
       };
     });
     return businesses;
