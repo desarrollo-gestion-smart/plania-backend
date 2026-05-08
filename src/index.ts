@@ -1,8 +1,5 @@
 // index.ts
 import express from "express";
-import https from "https";
-import fs from "fs";
-import path from "path";
 import dotenv from "dotenv";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
@@ -110,41 +107,15 @@ app.use("/api", followersRoutes);
 
 const envPort = process.env.PORT;
 const PORT = envPort && !isNaN(Number(envPort)) ? Number(envPort) : 3000;
-const HOST = process.env.HOST || "0.0.0.0";
+// In production with Nginx reverse proxy, listen on localhost for security
+// Nginx handles HTTPS on 0.0.0.0:443 and proxies to localhost:3000
+const HOST = process.env.HOST || "localhost";
 
-// Try to load HTTPS certificates, fall back to HTTP if not available
-let server;
-const certPath = process.env.CERT_PATH || "/etc/ssl/certs/plania";
-const certFile = path.join(certPath, "fullchain.pem");
-const keyFile = path.join(certPath, "privkey.pem");
-
-if (fs.existsSync(certFile) && fs.existsSync(keyFile)) {
-  try {
-    const options = {
-      cert: fs.readFileSync(certFile),
-      key: fs.readFileSync(keyFile),
-    };
-    server = https.createServer(options, app).listen(PORT, HOST, () => {
-      const addr = server.address();
-      const actualPort = typeof addr === 'string' ? addr : addr?.port;
-      console.log(`🔒 Servidor HTTPS corriendo en https://${HOST}:${actualPort}`);
-    });
-  } catch (error) {
-    console.error("Error loading SSL certificates, falling back to HTTP:", error);
-    server = app.listen(PORT, HOST, () => {
-      const addr = server.address();
-      const actualPort = typeof addr === 'string' ? addr : addr?.port;
-      console.log(`Servidor HTTP corriendo en http://${HOST}:${actualPort}`);
-    });
-  }
-} else {
-  console.warn("SSL certificates not found, running in HTTP mode");
-  server = app.listen(PORT, HOST, () => {
-    const addr = server.address();
-    const actualPort = typeof addr === 'string' ? addr : addr?.port;
-    console.log(`Servidor HTTP corriendo en http://${HOST}:${actualPort}`);
-  });
-}
+const server = app.listen(PORT, HOST, () => {
+  const addr = server.address();
+  const actualPort = typeof addr === 'string' ? addr : addr?.port;
+  console.log(`Servidor HTTP corriendo en http://${HOST}:${actualPort}`);
+});
 
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
